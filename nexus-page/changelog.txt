@@ -1,0 +1,30 @@
+Paste this in the Files tab changelog field (version 1.4.0). This is the first Nexus release; 1.0.0-1.3.0 were private test builds and were never published on Nexus. The full history is below if you want it on the page (Changelogs tab or description).
+
+1.4.0
+- First Nexus release.
+- New Forest Spirit collection (8 original pieces): Spirit Coat, Heartwood and Root & Stone saddles, Moss Cloak pad, Glowing Runes and Vine bridles, Antler Crown and Wisp Halo styling. 57 original pieces in total: 16 coats, 12 saddles, 11 pads, 9 bridles, 9 styling overlays.
+- Seasonal art: optional Name.<season>.png files are picked from the in-game season (Moss Cloak and Antler Crown have spring, fall and winter trims). Same id on every computer.
+- Saddle pads now draw under saddles (this also fixes Elle's pads painting over HorseTack saddles).
+- Art pass: fringe on all pads, Familiar easier to see on dark coats and from behind, real mushrooms on Moss & Mushroom, stronger Red Dun dorsal stripe, outlined Crescent Charm, clearer Prismatic Pearl flecks, chunkier Luau Lei, a proper Junimo Buddy, calmer Blue Ribbon and Crown while eating.
+- Saved choices keep working (ids unchanged).
+
+---- Full history ----
+
+1.4.0
+- (see above)
+
+1.3.0
+- 22 new original pieces (49 total). New collections: Breeds (Silver Bay, Red Dun, Grulla, Dapple Grey, Brindle, Sabino, Gold Champagne), Prismatic Night and Pearl coats, Ranch (Sage saddle + bridle), Winter (Frostglass saddle + pad) and Witchy (Broomstick and Grimoire saddles, Moss & Mushroom and Starry Hex pads, Potion Vials and Crescent Charm bridles, Witch Hat and Familiar styling, Midnight Familiar coat). No code changes.
+
+1.2.0
+- Ships 27 original pieces (5 coats, 6 saddles, 7 pads, 4 bridles, 5 styling overlays) with Elle-shaped fit versions and collection names.
+- Optional companion mode: reads Elle's Cuter Horses from the player's own install when present.
+- Wizard: collection filter, page jump / quick scroll, source tags, empty steps skipped.
+- Multiplayer: pieces a player doesn't have are skipped silently on their screen; the host's AnyoneCanEdit setting is shared with farmhands.
+- Warns if Multiplayer Horse Reskin is installed.
+
+1.1.0
+- Self-contained: art is loaded only from the mod's own assets folder (case-insensitive, 224x128 validated, de-duplicated). With empty folders the wizard still opens.
+
+1.0.0
+- First build: stable wizard for coat, saddle, pad, bridle and styling layers, live preview, host-authoritative multiplayer sync.

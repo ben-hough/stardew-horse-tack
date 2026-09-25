@@ -1,0 +1,156 @@
+[center][size=6][b]Horse Tack & Styling[/b][/size]
+[size=3][i]A stable wizard for dressing up your horse: coat, saddle, saddle pad, bridle and styling, each picked separately.[/i][/size][/center]
+
+[line]
+
+[size=5][b]What it does[/b][/size]
+Walk up to your stable and open the [b]stable wizard[/b]. It takes you step by step through your horse's [b]coat[/b], [b]saddle[/b], [b]saddle pad[/b], [b]bridle[/b] and [b]styling[/b] (hats, crowns, wings, a little familiar...). A [b]live preview[/b] shows your horse walking in all four directions with your choices as you go. Each player's horse keeps its own look, and in multiplayer everyone sees everyone's horse.
+
+The mod comes with [b]57 original pieces[/b] of its own: [b]16 coats, 12 saddles, 11 saddle pads, 9 bridles and 9 styling overlays[/b], sorted into themed collections. You can mix and match any of them.
+
+[size=5][b]Features[/b][/size]
+[list]
+[*][b]Stable wizard[/b] on either [b]front corner post[/b] of the stable (the bottom-left or bottom-right tile of the building, not the middle where your horse stands). The cursor turns into a hand there. It never replaces mounting your horse, and you don't need to hold anything.
+[*][b]One piece per layer[/b]: coat, saddle, saddle pad (shown when a saddle is chosen), bridle and styling. Pads sit under the saddle.
+[*][b]Keep current[/b] coat option: keeps whatever your horse looks like now, so other horse retextures keep working underneath your tack.
+[*][b]Live animated preview[/b] from the front, side, back and the other side.
+[*][b]Collection filter[/b] and [b]quick scroll[/b] so long lists stay easy to browse.
+[*]The wizard opens on the horse's current choices, and steps with nothing to pick are skipped.
+[*][b]Seasonal trims[/b]: the Forest Spirit Moss Cloak and Antler Crown change with the season.
+[*][b]Multiplayer sync[/b], host-authoritative (see below).
+[*][b]Optional companion:[/b] if you have [url=https://www.nexusmods.com/stardewvalley/mods/20042]Elle's Cuter Horses[/url] installed, her art shows up in the wizard too (see Requirements and compatibility).
+[*][b]Your own art:[/b] drop 224x128 PNGs into the mod's [i]assets[/i] folders and they show up as options (details in [i]assets/README.txt[/i]).
+[*][b]Generic Mod Config Menu[/b] support (optional).
+[/list]
+
+[size=5][b]The collections[/b][/size]
+[list]
+[*][b]Festivals:[/b] Egg Festival (Pastel pad), Flower Dance (Crown), Luau (Tropical pad, Lei), Moonlight Jellies (Moonlight pad), Stardew Valley Fair (Blue Ribbon bridle), Spirit's Eve (Ghost coat, Pumpkin saddle, Bat Wings), Festival of Ice (Frost coat, Snowflake pad), Night Market (Pearl bridle), Feast of the Winter Star (Holly saddle, Jingle Bells bridle, Snow Dusting).
+[*][b]Valley favourites:[/b] Ginger Island (Gilded coat), Junimo (Leaf saddle, Junimo Buddy), Iridium (Shimmer coat, Shine saddle), Prismatic (Night and Pearl coats, Shard saddle), Galaxy (Stardust coat, Starfield pad), Stardrop (Star bridle), Mr. Qi (Casino saddle), Joja (Corporate pad), Lewis (Lucky Purple Shorts pad).
+[*][b]Breeds:[/b] Silver Bay, Red Dun, Grulla, Dapple Grey, Brindle, Sabino and Gold Champagne coats (inspired by real horse colours).
+[*][b]Ranch:[/b] Sage saddle and Sage bridle. [b]Winter:[/b] Frostglass saddle and Frostglass pad.
+[*][b]Witchy:[/b] Midnight Familiar coat, Broomstick and Grimoire saddles, Moss & Mushroom and Starry Hex pads, Potion Vials and Crescent Charm bridles, Witch Hat and Familiar styling.
+[*][b]Forest Spirit:[/b] Spirit Coat, Heartwood and Root & Stone saddles, Moss Cloak pad (with spring, fall and winter trims), Glowing Runes and Vine bridles, Antler Crown (with spring, fall and winter trims) and Wisp Halo styling.
+[/list]
+
+[size=5][b]How to use it[/b][/size]
+[list=1]
+[*]Stand in front of your stable and press the [b]action button[/b] (right-click, or [b]A[/b] on a controller) on either front corner post.
+[*]If you can restyle more than one horse, pick the horse first.
+[*]Go through [b]Coat -> Saddle -> Saddle pad -> Bridle -> Styling -> Confirm[/b]. Pick [i]Keep current[/i] or [i]None[/i] to leave a layer as it is or empty.
+[*]Press [b]Apply[/b] on the last step. Your horse's new look is saved with the farm.
+[/list]
+
+[size=4][b]Controls[/b][/size]
+[list]
+[*][b]Change collection:[/b] Left / Right keys, or click the arrows beside the collection name.
+[*][b]Quick scroll:[/b] mouse wheel (3 rows per notch), [b]PageUp / PageDown[/b], or the controller [b]bumpers[/b].
+[*][b]Keyboard:[/b] Up / Down to choose, Enter = Next, Backspace = Back, Esc = close.
+[*][b]Controller:[/b] A = select, triggers = Back / Next, B = close.
+[*]Mouse: click options and the Back / Next / Apply / Cancel buttons.
+[/list]
+You can also set a hotkey to open the wizard anywhere (off by default, see Configuration).
+
+[size=5][b]Configuration[/b][/size]
+Edit [b]config.json[/b] in the mod folder (it's created the first time you run the game with the mod), or use [url=https://www.nexusmods.com/stardewvalley/mods/5098]Generic Mod Config Menu[/url] in-game.
+[list]
+[*][b]OpenWizardKey[/b] (default [b]empty = off[/b]): a keybind that opens the wizard anywhere, e.g. [i]"H"[/i].
+[*][b]AnyoneCanEdit[/b] (default [b]false[/b]): let every player restyle every horse. Off = only the horse's owner or the host. In multiplayer the host's setting is the one that counts.
+[*][b]StableActionTiles[/b] (default [b]true[/b]): adds the wizard to the stable's two front corner posts.
+[*][b]LogVerbosity[/b] (default [b]Normal[/b]): [i]Verbose[/i] writes extra details to the SMAPI console.
+[/list]
+
+[size=5][b]Multiplayer[/b][/size]
+[list]
+[*][b]Every player needs Horse Tack & Styling, the same version[/b], and the host must have it for anyone to restyle a horse.
+[*][b]Host-authoritative:[/b] when a farmhand applies a look, their game sends it to the host. The host checks it (for example, that the player may restyle that horse) and saves it on the horse, and the game syncs it to everyone.
+[*]Only the horse's owner or the host can restyle a horse, unless the host turns on [i]AnyoneCanEdit[/i]. A horse a farmhand is riding can't be restyled until they dismount.
+[*]Each computer draws the pieces itself, so [b]use matching optional packs[/b]: if one player picks Elle's Cuter Horses art or art they added themselves, the others need the same files to see it. A missing piece is simply skipped on that player's screen (they see the plain horse or the layers they do have). There's no error.
+[*]Seasonal trims follow the in-game season shared by the host, so everyone sees the same season.
+[/list]
+
+[size=5][b]Requirements and compatibility[/b][/size]
+[list]
+[*][b]Requires[/b] [url=https://www.nexusmods.com/stardewvalley/mods/2400]SMAPI[/url] 4.x and Stardew Valley 1.6.
+[*][b]Optional companion:[/b] [url=https://www.nexusmods.com/stardewvalley/mods/20042]Elle's Cuter Horses[/url] by Elle / Junimods (it needs Content Patcher). When it's installed, Horse Tack & Styling reads her coats, prismatic hair and coloured saddles, pads and bridles from [b]your own install[/b] of her mod and lists them in the wizard next to its own art. Horse Tack & Styling doesn't include or redistribute any of her art. Without her mod, you simply get Horse Tack & Styling's own pieces.
+[*][b]Optional:[/b] [url=https://www.nexusmods.com/stardewvalley/mods/5098]Generic Mod Config Menu[/url] for in-game settings.
+[*][b]Multiplayer Horse Reskin:[/b] please [b]remove it[/b]. Both mods replace the horse's texture, so they conflict. Horse Tack & Styling warns about it in the SMAPI console.
+[*][b]Alternative Textures[/b] skins on horses may also conflict. Use one or the other for a given horse.
+[*][b]Horse retextures[/b] work with [i]Keep current[/i]: the retexture stays as the coat and your tack goes on top.
+[*][b]Mods that replace the horse with a different body shape[/b] (for example Bog's Elk Spirit Horse and Stable): the tack is drawn for the standard horse shape (and Elle's), so it won't line up with a differently shaped animal. For that horse, choose [i]Keep current[/i] for the coat and leave the saddle, pad, bridle and styling at [i]None[/i].
+[*][b]Tractor Mod:[/b] tractors are never touched.
+[*]Built and tested with [b]SMAPI 4.5.2[/b] on [b]Stardew Valley 1.6.15[/b], on [b]Windows[/b]. It hasn't been tested on macOS, Linux, Android or in split-screen yet. If you try it there, please let me know how it goes.
+[/list]
+
+[size=5][b]Installation[/b][/size]
+[list=1]
+[*]Install the latest version of [url=https://www.nexusmods.com/stardewvalley/mods/2400]SMAPI[/url].
+[*]Download this mod and unzip it into [b]Stardew Valley/Mods[/b] (you should end up with [b]Mods/HorseTack/manifest.json[/b]). You can also use a mod manager such as Vortex or Stardrop.
+[*]If you have [b]Multiplayer Horse Reskin[/b], remove it.
+[*](Optional) Install [url=https://www.nexusmods.com/stardewvalley/mods/20042]Elle's Cuter Horses[/url] and/or [url=https://www.nexusmods.com/stardewvalley/mods/5098]Generic Mod Config Menu[/url].
+[*]Run the game using SMAPI. In multiplayer, every player installs the same version.
+[/list]
+
+[size=5][b]Uninstalling[/b][/size]
+Each horse's choices are stored as a few small text entries in the horse's save data. If you remove the mod, horses go back to their normal look and the entries are ignored. To clear a horse's look first, use [i]horsetack_reset <horse>[/i] or pick Keep current / None in the wizard.
+
+[size=5][b]Console commands[/b][/size]
+Type these in the SMAPI console window:
+[list]
+[*][b]horsetack_open (horse)[/b]: opens the stable wizard; the horse name or id is optional.
+[*][b]horsetack_list[/b]: lists the horses with their owner and current tack.
+[*][b]horsetack_options (layer)[/b]: lists the selectable art ids; the layer is optional.
+[*][b]horsetack_set <horse> <coat|saddle|pad|bridle|style> <id|none>[/b]: sets one layer.
+[*][b]horsetack_reset <horse>[/b]: removes all tack from a horse.
+[*][b]horsetack_reload[/b]: rescans the art folders (after you add or change PNGs).
+[/list]
+
+[size=5][b]FAQ[/b][/size]
+[b]Q: I can't find the wizard at the stable.[/b]
+A: Use the action button on the bottom-left or bottom-right tile of the stable building (the corner posts), not the middle where the horse stands. You can also set [i]OpenWizardKey[/i] or type [i]horsetack_open[/i] in the SMAPI console.
+
+[b]Q: My friend's horse looks plain on my screen.[/b]
+A: You're probably missing a piece they picked. Make sure you both have the same Horse Tack & Styling version, and the same optional art (for example Elle's Cuter Horses).
+
+[b]Q: Do I need Elle's Cuter Horses?[/b]
+A: No. Horse Tack & Styling works on its own with its 57 pieces. Elle's mod just adds more choices if you already use it.
+
+[b]Q: Can I add my own art?[/b]
+A: Yes. Put 224x128 PNGs in the vanilla horse sheet layout into [i]Mods/HorseTack/assets/{coats,saddles,pads,bridles,styles}[/i] and run [i]horsetack_reload[/i]. See [i]assets/README.txt[/i]. Only add art you made or are allowed to use.
+
+[size=5][b]Known limitations[/b][/size]
+[list]
+[*]In the front view the Antler Crown's antlers are hidden behind the saddle (the circlet and leaves still show). They show from the side and back.
+[*]Seasonal trims are small accents (a few leaf, blossom or frost pixels) rather than a full change of look.
+[*]On the Spirit Coat the Moss Cloak makes everything quite green. It stands out more on a bay or grey coat.
+[*]From behind, the Familiar and the Junimo Buddy sit beside the saddle.
+[*]The leg barring on the Red Dun coat is faint, and the pad flaps are small from the front.
+[*]Elle's saddles, pads and bridles are drawn for her horse shape, so they may sit slightly off on Horse Tack & Styling's own coats.
+[*]The season follows the farm's calendar, also on Ginger Island.
+[*]Only tested on Windows so far (see Requirements and compatibility).
+[/list]
+
+[size=5][b]Permissions and source[/b][/size]
+The source code is on GitHub under the [b]MIT license[/b]: [url=https://github.com/ben-hough/stardew-horse-tack]github.com/ben-hough/stardew-horse-tack[/url]. The license covers the mod's code, docs and its own generated art. It doesn't cover game assets, Elle's art, or art you add yourself.
+
+[size=5][b]Credits[/b][/size]
+[list]
+[*][b]ConcernedApe[/b] for Stardew Valley. The coats are recolours of the vanilla horse sprite's shape.
+[*][b]Pathoschild[/b] and contributors for [url=https://www.nexusmods.com/stardewvalley/mods/2400]SMAPI[/url] and the [url=https://stardewvalleywiki.com/Modding:Index]Stardew modding wiki[/url].
+[*][b]Andreas Pardeike[/b] for [url=https://github.com/pardeike/Harmony]Harmony[/url] (bundled with SMAPI).
+[*][b]spacechase0[/b] for [url=https://www.nexusmods.com/stardewvalley/mods/5098]Generic Mod Config Menu[/url] and its API.
+[*][b]Elle / Junimods[/b] for [url=https://www.nexusmods.com/stardewvalley/mods/20042]Elle's Cuter Horses[/url], which this mod can read at runtime (never bundled). The Elle-shaped fit versions of the tack were drawn to match her horses' outline. None of her pixels are included.
+[*]Idea inspired by [b]DelphinWave[/b]'s [url=https://github.com/DelphinWave/MultiplayerHorseReskin]Multiplayer Horse Reskin[/url] (MIT). No code from it is used.
+[*]The Forest Spirit and Witchy sets are original art built from generic motifs. They aren't affiliated with any other mod and use nothing from one.
+[*]Page images use the fonts [b]Pixelify Sans[/b] (The Pixelify Sans Project Authors) and [b]Silkscreen[/b] (The Silkscreen Project Authors), both under the SIL Open Font License 1.1.
+[/list]
+
+[size=5][b]AI disclosure[/b][/size]
+I made this mod with a lot of help from AI, and I'd rather be upfront about it:
+[list]
+[*]The mod's [b]C# code was written by an AI coding assistant[/b] (Grok) under my direction.
+[*]All the bundled art (coats, saddles, pads, bridles and styling) was [b]drawn procedurally by Python scripts[/b] in the repo. Those scripts were also written by AI. The coats are recolours of the vanilla horse sprite's shape with its little built-in saddle painted out, and the tack is drawn from templates. No image-generation model was used for any art.
+[*]The [b]mod page text[/b] and the [b]page banner and gallery images[/b] were also produced with AI help. The images are the mod's own sprites, scaled up and arranged on a drawn background by an AI-written script. They aren't AI-generated pictures, and they aren't in-game screenshots.
+[*]I played it in-game on Windows and it went well, but please report anything you find (which coat + which piece, if something looks misaligned).
+[/list]
+In line with the Nexus Mods rules, this page is tagged [b]AI-Generated Content[/b] and [b]AI Media[/b].
