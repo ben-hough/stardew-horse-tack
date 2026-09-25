@@ -64,19 +64,20 @@ Apply these:
 |---|---|---|
 | **Header image** | `/workspace/codex-horsetack/nexus-page/banner.png` (1300x372) | Same size as the Ghostwood header. Title on the left, three styled horses on the right (Spirit's Eve / Forest Spirit in fall / Witchy). |
 | **Gallery 1 = thumbnail** | `/workspace/codex-horsetack/nexus-page/thumbnail.png` (1920x1080) | Upload this **first**: "The first image you upload automatically becomes your thumbnail." We want the designed title card as the thumbnail. |
-| Gallery 2 | `screenshots/ingame-1-saddle-step.png` (1615x1103) | Real in-game screenshot: the Stable Wizard's Saddle step with the live preview and HorseTack source tags. |
-| Gallery 3 | `screenshots/ingame-2-confirm.png` (1542x1047) | Real in-game screenshot: the Confirm step (Dapple Grey, Iridium Shine, Galaxy Starfield, Luau Lei). |
-| Gallery 4 | `screenshots/ingame-3-riding.png` (1114x792) | Real in-game screenshot: riding the styled horse on the farm. |
-| Gallery 5 | `gallery-2-witchy.png` | Two Witchy looks, front / side / back / grazing. |
-| Gallery 6 | `gallery-3-forest-spirit-seasons.png` | Two Forest Spirit looks in spring / summer / fall / winter. |
-| Gallery 7 | `gallery-4-festivals-and-valley.png` | 18 festival and valley collections. |
-| Gallery 8 | `gallery-5-coats.png` | All 16 coats (7 breeds + 9 themed). |
-| Gallery 9 | `gallery-6-mix-and-match.png` | Layer build-up (coat -> saddle -> pad -> bridle -> styling) + 12 mixed looks. |
+| Gallery 2 | `screenshots/ingame-4-coat-step.png` (1140x815) | Real in-game screenshot: the Stable Wizard's Coat step on Galaxy: Stardust, with the live preview and HorseTack source tags. |
+| Gallery 3 | `screenshots/ingame-1-saddle-step.png` (1615x1103) | Real in-game screenshot: the Saddle step with the live preview. |
+| Gallery 4 | `screenshots/ingame-2-confirm.png` (1542x1047) | Real in-game screenshot: the Confirm step (Dapple Grey, Iridium Shine, Galaxy Starfield, Luau Lei). |
+| Gallery 5 | `screenshots/ingame-3-riding.png` (1114x792) | Real in-game screenshot: riding the styled horse on the farm. |
+| Gallery 6 | `gallery-2-witchy.png` | Two Witchy looks, front / side / back / grazing. |
+| Gallery 7 | `gallery-3-forest-spirit-seasons.png` | Two Forest Spirit looks in spring / summer / fall / winter. |
+| Gallery 8 | `gallery-4-festivals-and-valley.png` | 18 festival and valley collections. |
+| Gallery 9 | `gallery-5-coats.png` | All 16 coats (7 breeds + 9 themed). |
+| Gallery 10 | `gallery-6-mix-and-match.png` | Layer build-up (coat -> saddle -> pad -> bridle -> styling) + 12 mixed looks. |
 | **Video links** | none | |
 
-Upload order: `thumbnail.png`, `ingame-1`, `ingame-2`, `ingame-3`, then `gallery-2` ... `gallery-6` (all in `/workspace/codex-horsetack/nexus-page/`, screenshots in its `screenshots/` subfolder; same files in `E:\Codex-Mods\stardew\HorseTack\nexus-page\`).
+Upload order: `thumbnail.png`, `ingame-4-coat-step`, `ingame-1-saddle-step`, `ingame-2-confirm`, `ingame-3-riding`, then `gallery-2` ... `gallery-6` (all in `/workspace/codex-horsetack/nexus-page/`, screenshots in its `screenshots/` subfolder; same files in `E:\Codex-Mods\stardew\HorseTack\nexus-page\`). The box-only `nexus-page/video/` folder contains third-party art: it's git-ignored and not mirrored to E:.
 
-The three screenshots are Ben's own in-game captures (Windows, SMAPI 4.5.2, SDV 1.6.15). The horse in them wears only HorseTack pieces, and every wizard row shown is tagged HorseTack; the rest is the game's own UI and world. The banner, thumbnail and gallery-2...6 images use only HorseTack's own art from the repo's `assets/` (byte-identical to the PNGs in the zip): no vanilla sheet, no Elle's Cuter Horses art, no `/previews/` sheets. Every look shown is a legal wizard selection (one piece per layer, pad only with a saddle), drawn coat -> styling -> pad -> saddle -> bridle, nearest-neighbour upscaled. Fonts: Pixelify Sans and Silkscreen (SIL OFL 1.1).
+The four screenshots are Ben's own in-game captures (Windows, SMAPI 4.5.2, SDV 1.6.15). The horse in them wears only HorseTack pieces, and every wizard row shown is tagged HorseTack; the rest is the game's own UI and world. The banner, thumbnail and gallery-2...6 images use only HorseTack's own art from the repo's `assets/` (byte-identical to the PNGs in the zip): no vanilla sheet, no Elle's Cuter Horses art, no `/previews/` sheets. Every look shown is a legal wizard selection (one piece per layer, pad only with a saddle), drawn coat -> styling -> pad -> saddle -> bridle, nearest-neighbour upscaled. Fonts: Pixelify Sans and Silkscreen (SIL OFL 1.1).
 
 ## 3. Files tab
 | Field | Value |
@@ -160,7 +161,7 @@ Then upload the new `HorseTack-1.4.0.zip` in the Files tab. Keep the page, file 
 ## 9. Pre-publish checklist
 - [x] Draft created (52917) -> rebuild run (box + PC) -> zip check PASS with `Nexus:52917`
 - [ ] General: name, summary, category Pets / Horses (or Visuals and Graphics), description pasted, English, tags incl. AI-Generated Content + AI Media
-- [ ] Media: banner.png header; gallery order thumbnail.png (first = thumbnail), ingame-1, ingame-2, ingame-3, gallery-2 ... gallery-6
+- [ ] Media: banner.png header; gallery order thumbnail.png (first = thumbnail), ingame-4, ingame-1, ingame-2, ingame-3, gallery-2 ... gallery-6
 - [ ] Files: main file 1.4.0, display name `Horse Tack and Styling`, file description, changelog
 - [ ] Requirements: SMAPI (2400) only
 - [ ] Permissions: "other authors' assets / credited" option (not "all assets are mine") + author notes + file credits

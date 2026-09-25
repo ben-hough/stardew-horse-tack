@@ -26,3 +26,6 @@ tests/**/data/
 .env
 *.token
 secrets.*
+
+# Nexus page video work (contains third-party art): box-only, never commit
+nexus-page/video/
