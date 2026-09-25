@@ -25,7 +25,7 @@ Kit files (this folder):
 
 | Field | Value |
 |---|---|
-| **Mod name** | `Horse Tack & Styling` (20 chars; same as the manifest `Name`). |
+| **Mod name** | `Horse Tack and Styling` (**done**: draft created as mod **52917**, https://www.nexusmods.com/stardewvalley/mods/52917). Nexus rejected `&` in the mod name, so the page title uses "and". The manifest `Name` stays `Horse Tack & Styling`: SMAPI's update check matches by the `Nexus:52917` UpdateKey (and the mod by its UniqueID), not by name, so the difference doesn't matter. |
 | **Short description / summary** | `Style your horse at the stable: pick coat, saddle, saddle pad, bridle and styling separately with a live preview. 57 original pieces (festivals, breeds, Witchy, Forest Spirit with seasonal trims). Synced in multiplayer.` (219 characters, under the 255 used by the Nexus API and the old 350 cap.) |
 | **Game** | Stardew Valley. **Can't be changed after the draft is created.** |
 | **Category** | **Pets / Horses** (category 8). Why: it's purely about horses, and that's the category the live Nexus data shows for the closest mods: Elle's Cuter Horses (20042), Multiplayer Horse Reskin (7681) and its Continued version (43368) are all in Pets / Horses. Runner-up: **Visuals and Graphics** (25), which is where Bog's Elk Spirit Horse and Stable (24483) sits. Either is defensible; Pets / Horses is where horse players browse. |
@@ -63,16 +63,20 @@ Apply these:
 | Slot | File (box path) | Notes |
 |---|---|---|
 | **Header image** | `/workspace/codex-horsetack/nexus-page/banner.png` (1300x372) | Same size as the Ghostwood header. Title on the left, three styled horses on the right (Spirit's Eve / Forest Spirit in fall / Witchy). |
-| **Gallery 1 = thumbnail** | `thumbnail.png` (1920x1080) | Title card with four full looks. "The first image you upload automatically becomes your thumbnail." |
-| Gallery 2 | `gallery-2-witchy.png` | Two Witchy looks, front / side / back / grazing. |
-| Gallery 3 | `gallery-3-forest-spirit-seasons.png` | Two Forest Spirit looks in spring / summer / fall / winter. |
-| Gallery 4 | `gallery-4-festivals-and-valley.png` | 18 festival and valley collections. |
-| Gallery 5 | `gallery-5-coats.png` | All 16 coats (7 breeds + 9 themed). |
-| Gallery 6 | `gallery-6-mix-and-match.png` | Layer build-up (coat -> saddle -> pad -> bridle -> styling) + 12 mixed looks. |
-| **Later** | Real in-game screenshots of the wizard (stable post, a step with the preview, the confirm step) | Recommended once you have them. The images above are composed sprite sheets, not screenshots, and the disclosure says so. |
+| **Gallery 1 = thumbnail** | `/workspace/codex-horsetack/nexus-page/thumbnail.png` (1920x1080) | Upload this **first**: "The first image you upload automatically becomes your thumbnail." We want the designed title card as the thumbnail. |
+| Gallery 2 | `screenshots/ingame-1-saddle-step.png` (1615x1103) | Real in-game screenshot: the Stable Wizard's Saddle step with the live preview and HorseTack source tags. |
+| Gallery 3 | `screenshots/ingame-2-confirm.png` (1542x1047) | Real in-game screenshot: the Confirm step (Dapple Grey, Iridium Shine, Galaxy Starfield, Luau Lei). |
+| Gallery 4 | `screenshots/ingame-3-riding.png` (1114x792) | Real in-game screenshot: riding the styled horse on the farm. |
+| Gallery 5 | `gallery-2-witchy.png` | Two Witchy looks, front / side / back / grazing. |
+| Gallery 6 | `gallery-3-forest-spirit-seasons.png` | Two Forest Spirit looks in spring / summer / fall / winter. |
+| Gallery 7 | `gallery-4-festivals-and-valley.png` | 18 festival and valley collections. |
+| Gallery 8 | `gallery-5-coats.png` | All 16 coats (7 breeds + 9 themed). |
+| Gallery 9 | `gallery-6-mix-and-match.png` | Layer build-up (coat -> saddle -> pad -> bridle -> styling) + 12 mixed looks. |
 | **Video links** | none | |
 
-All images use only HorseTack's own art from the repo's `assets/` (byte-identical to the PNGs in the zip): no vanilla sheet, no Elle's Cuter Horses art, no `/previews/` sheets. Every look shown is a legal wizard selection (one piece per layer, pad only with a saddle), drawn coat -> styling -> pad -> saddle -> bridle, nearest-neighbour upscaled. Fonts: Pixelify Sans and Silkscreen (SIL OFL 1.1).
+Upload order: `thumbnail.png`, `ingame-1`, `ingame-2`, `ingame-3`, then `gallery-2` ... `gallery-6` (all in `/workspace/codex-horsetack/nexus-page/`, screenshots in its `screenshots/` subfolder; same files in `E:\Codex-Mods\stardew\HorseTack\nexus-page\`).
+
+The three screenshots are Ben's own in-game captures (Windows, SMAPI 4.5.2, SDV 1.6.15). The horse in them wears only HorseTack pieces, and every wizard row shown is tagged HorseTack; the rest is the game's own UI and world. The banner, thumbnail and gallery-2...6 images use only HorseTack's own art from the repo's `assets/` (byte-identical to the PNGs in the zip): no vanilla sheet, no Elle's Cuter Horses art, no `/previews/` sheets. Every look shown is a legal wizard selection (one piece per layer, pad only with a saddle), drawn coat -> styling -> pad -> saddle -> bridle, nearest-neighbour upscaled. Fonts: Pixelify Sans and Silkscreen (SIL OFL 1.1).
 
 ## 3. Files tab
 | Field | Value |
@@ -122,7 +126,7 @@ ConcernedApe (Stardew Valley; coats are recolours of the vanilla horse sprite's 
 
 ## 6. AI disclosure (already in the description; short version for elsewhere)
 ```
-AI disclosure: This mod was built with heavy AI assistance. The C# code, and the Python scripts that procedurally draw all of its art (coats recoloured from the vanilla horse sprite's shape, tack drawn from templates), were written by an AI coding assistant (Grok) under my direction (no image-generation model was used). The mod page text and images were also produced with AI help; the images are the mod's own sprites arranged by a script, not screenshots. I tested it in-game on Windows. Tagged "AI-Generated Content" and "AI Media" per Nexus Mods rules.
+AI disclosure: This mod was built with heavy AI assistance. The C# code, and the Python scripts that procedurally draw all of its art (coats recoloured from the vanilla horse sprite's shape, tack drawn from templates), were written by an AI coding assistant (Grok) under my direction (no image-generation model was used). The mod page text and designed images were also produced with AI help; the banner, thumbnail and sprite-sheet gallery images are the mod's own sprites arranged by a script, and the gallery also includes real in-game screenshots. I tested it in-game on Windows. Tagged "AI-Generated Content" and "AI Media" per Nexus Mods rules.
 ```
 Declare it in (1) **Tags -> Generative AI Usage**: `AI-Generated Content` + `AI Media` (the actual requirement), (2) the description's AI disclosure section, (3) optionally the Author notes.
 
@@ -154,9 +158,9 @@ Then upload the new `HorseTack-1.4.0.zip` in the Files tab. Keep the page, file 
 - Since then the shipped readme is `HorseTack/README.txt` (public 1.4.0 text from `docs/README.txt`), and `zip_check.py` requires it and rejects `README-TESTERS.txt`. So the old zip now fails that one check by design; the UpdateKey rebuild produces the new layout.
 
 ## 9. Pre-publish checklist
-- [ ] Draft created -> ID noted -> rebuild command run (box + PC) -> zip check PASS with the UpdateKey
+- [x] Draft created (52917) -> rebuild run (box + PC) -> zip check PASS with `Nexus:52917`
 - [ ] General: name, summary, category Pets / Horses (or Visuals and Graphics), description pasted, English, tags incl. AI-Generated Content + AI Media
-- [ ] Media: banner.png header, thumbnail.png first, gallery 2-6 (real screenshots later)
+- [ ] Media: banner.png header; gallery order thumbnail.png (first = thumbnail), ingame-1, ingame-2, ingame-3, gallery-2 ... gallery-6
 - [ ] Files: main file 1.4.0, display name `Horse Tack and Styling`, file description, changelog
 - [ ] Requirements: SMAPI (2400) only
 - [ ] Permissions: "other authors' assets / credited" option (not "all assets are mine") + author notes + file credits
