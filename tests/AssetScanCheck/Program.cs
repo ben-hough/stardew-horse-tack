@@ -166,6 +166,53 @@ internal static class Program
             Check(sel.Pad == "", "pad dropped without saddle");
             sel = new TackSelection { Saddle = "saddles/brown", Pad = "pads/blue" }.Normalize();
             Check(sel.Pad == "pads/blue", "pad kept with saddle");
+
+            // 8. 1.4.1: a chosen HorseTack coat never depends on the game's horse texture (seasonal horse packs, asset propagation)
+            {
+                const int W = 224, H = 128;
+                PixelData Solid(byte r, byte g, byte b, byte a = 255) => new(W, H, Enumerable.Repeat(new Microsoft.Xna.Framework.Color(r, g, b, a), W * H).ToArray());
+                PixelData SaddleOverlay()
+                {
+                    var data = new Microsoft.Xna.Framework.Color[W * H];
+                    data[0] = new Microsoft.Xna.Framework.Color(200, 0, 0, 255); // one opaque saddle pixel, the rest transparent
+                    return new PixelData(W, H, data);
+                }
+                var coatPx = Solid(10, 20, 30);
+                var springBase = Solid(0, 255, 0);  // a seasonal pack's tinted horse
+                var winterBase = Solid(0, 0, 255);
+                var overlay = SaddleOverlay();
+                var order = new[] { TackLayer.Style, TackLayer.Pad, TackLayer.Saddle, TackLayer.Bridle };
+                PixelData? Pixels(string id, BodyShape shape) => id == "coats/galaxy" ? coatPx : id == "saddles/iridium" ? overlay : null;
+                BodyShape? CoatShape(string id) => id == "coats/galaxy" ? BodyShape.Vanilla : null;
+
+                int baseReads = 0;
+                PixelData? current = springBase;
+                PixelData? LoadBase() { baseReads++; return current; }
+
+                var chosen = new TackSelection { Coat = "coats/galaxy", Saddle = "saddles/iridium" };
+                PixelData? a = TextureManager.ComposePixels(chosen, Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase);
+                current = winterBase; // the pack switches season (asset invalidated + propagated)
+                PixelData? b = TextureManager.ComposePixels(chosen, Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase);
+                Check(baseReads == 0, "chosen coat: the game's horse texture is never read");
+                Check(a != null && b != null && a.Data.SequenceEqual(b.Data), "chosen coat: identical composite before and after the base changes");
+                Check(a != null && a.Data[1] == coatPx.Data[1] && a.Data[0] == overlay.Data[0], "chosen coat: coat pixels + tack on top");
+
+                var keep = new TackSelection { Saddle = "saddles/iridium" };
+                current = springBase;
+                PixelData? k1 = TextureManager.ComposePixels(keep, Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase);
+                current = winterBase;
+                PixelData? k2 = TextureManager.ComposePixels(keep, Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase);
+                Check(k1 != null && k2 != null && k1.Data[1] == springBase.Data[1] && k2.Data[1] == winterBase.Data[1] && k2.Data[0] == overlay.Data[0],
+                    "Keep current + tack: follows the live base, tack stays on top");
+
+                Check(TextureManager.ComposePixels(new TackSelection(), Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase) == null,
+                    "Keep current, no tack: no composite (the horse shows the live game texture)");
+
+                baseReads = 0;
+                var missing = new TackSelection { Coat = "coats/not-installed-here", Saddle = "saddles/iridium" };
+                PixelData? m = TextureManager.ComposePixels(missing, Pixels, CoatShape, BodyShape.Vanilla, order, LoadBase);
+                Check(baseReads == 1 && m != null && m.Data[1] == winterBase.Data[1], "synced coat missing on this computer: falls back to the live base");
+            }
         }
         finally
         {

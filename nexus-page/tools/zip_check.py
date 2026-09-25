@@ -3,7 +3,8 @@
 every PNG byte-identical to the repo's own assets/, and no file matching any third-party file
 (Elle's Cuter Horses reference copy + /workspace/codex-thirdparty) by SHA-256 or by decoded pixels.
 
-usage: zip_check.py <zip> [--expect-updatekey Nexus:<id>]
+usage: zip_check.py <zip> [--expect-updatekey Nexus:<id>] [--expect-version <x.y.z>]
+The expected version defaults to the repo manifest's Version ($HT_REPO/manifest.json).
 """
 import sys, os, io, json, re, hashlib, zipfile
 from PIL import Image
@@ -22,6 +23,8 @@ def pix(b):
 def main():
     zpath = sys.argv[1]
     expect = sys.argv[sys.argv.index("--expect-updatekey") + 1] if "--expect-updatekey" in sys.argv else None
+    version = sys.argv[sys.argv.index("--expect-version") + 1] if "--expect-version" in sys.argv else \
+        json.loads(re.sub(r"^\s*//.*$", "", open(os.path.join(REPO, "manifest.json"), encoding="utf-8-sig").read(), flags=re.M))["Version"]
     ok = True
     def check(cond, msg):
         nonlocal ok
@@ -50,7 +53,7 @@ def main():
     check(all(n.startswith("HorseTack/") and "\\" not in n for n in names), "single top-level HorseTack/ folder, forward-slash names")
     check(not any(n.lower().endswith(("config.json", ".deps.json", ".xnb")) for n in names), "no config.json / deps.json / xnb")
     m = json.loads(re.sub(r"^\s*//.*$", "", z.read("HorseTack/manifest.json").decode("utf-8-sig"), flags=re.M))
-    check(m.get("Version") == "1.4.0", f"manifest Version = {m.get('Version')}")
+    check(m.get("Version") == version, f"manifest Version = {m.get('Version')} (expected {version})")
     check(m.get("UniqueID") == "MrGlim.HorseTack", f"manifest UniqueID = {m.get('UniqueID')}")
     if expect:
         check(m.get("UpdateKeys") == [expect], f"manifest UpdateKeys = {m.get('UpdateKeys')} (expected [{expect}])")
@@ -68,7 +71,7 @@ def main():
     check("HorseTack/README-TESTERS.txt" not in names, "no leftover README-TESTERS.txt (the release readme ships as README.txt)")
     if "HorseTack/README.txt" in names:
         rd = z.read("HorseTack/README.txt").decode("utf-8-sig")
-        check("1.4.0" in rd and "test build" not in rd.lower(), "README.txt is the public 1.4.0 readme (no 'test build' wording)")
+        check(f"Horse Tack & Styling {version} " in rd and "test build" not in rd.lower(), f"README.txt is the public {version} readme (no 'test build' wording)")
     print("RESULT:", "PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
 

@@ -4,12 +4,19 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Characters;
 
 namespace MrGlim.HorseTack.Framework
 {
     /// <summary>Builds (and caches) one composite texture per base+selection, and applies it to horse sprites right before they draw.</summary>
+    /// <remarks>
+    /// A composite is a Texture2D owned by HorseTack, never a content-manager asset, so SMAPI's asset propagation (which edits cached
+    /// textures like <c>Animals/horse</c> in place) can't overwrite it. A chosen HorseTack coat is composed only from HorseTack's own
+    /// pixels and never reads the game's horse texture, so seasonal horse packs can't change it. Keep current horses are composed from the
+    /// live game texture and are rebuilt (one tick later, after propagation) whenever that texture is invalidated.
+    /// </remarks>
     internal sealed class TextureManager
     {
         private const string VanillaHorse = "Animals\\horse";
@@ -22,6 +29,10 @@ namespace MrGlim.HorseTack.Framework
         private readonly List<(Texture2D Texture, double RetiredAt)> Retired = new();
         private readonly ConditionalWeakTable<AnimatedSprite, Applied> AppliedSprites = new();
         private int Generation;
+        private bool ReapplyPending;
+
+        /// <summary>The composite generation (bumped whenever cached composites are dropped).</summary>
+        public int CurrentGeneration => this.Generation;
 
         private sealed class Applied
         {
@@ -55,14 +66,14 @@ namespace MrGlim.HorseTack.Framework
             string key = baseName + "#" + sel.Key + this.Registry.SeasonKey(sel);
 
             // fast path: already applied and nothing changed
-            if (this.AppliedSprites.TryGetValue(sprite, out Applied? state) && state.Key == key && state.Generation == this.Generation && state.Texture != null)
+            if (this.AppliedSprites.TryGetValue(sprite, out Applied? state) && state.Key == key && state.Generation == this.Generation && state.Texture is { IsDisposed: false })
             {
                 if (!ReferenceEquals(sprite.spriteTexture, state.Texture))
                     this.Assign(sprite, state.Texture, baseName);
                 return;
             }
 
-            if (!this.Composites.TryGetValue(key, out Texture2D? tex))
+            if (!this.Composites.TryGetValue(key, out Texture2D? tex) || tex is { IsDisposed: true })
             {
                 tex = this.Compose(baseName, sel, $"horse '{horse.displayName}'");
                 this.Composites[key] = tex;
@@ -99,7 +110,52 @@ namespace MrGlim.HorseTack.Framework
             if (this.AppliedSprites.TryGetValue(sprite, out _))
             {
                 this.AppliedSprites.Remove(sprite);
-                sprite.loadedTexture = null; // AnimatedSprite.Texture reloads from textureName on next access
+                sprite.loadedTexture = null; // AnimatedSprite.Texture reloads from textureName on next access...
+                _ = sprite.Texture;          // ...which we trigger now, so the sprite never keeps pointing at one of our composites
+            }
+        }
+
+        /// <summary>Whether this sprite currently shows a HorseTack composite.</summary>
+        public bool IsComposite(AnimatedSprite sprite, out int generation)
+        {
+            generation = -1;
+            if (this.AppliedSprites.TryGetValue(sprite, out Applied? state) && ReferenceEquals(sprite.spriteTexture, state.Texture))
+            {
+                generation = state.Generation;
+                return true;
+            }
+            return false;
+        }
+
+        /*********
+        ** Re-apply to every horse
+        *********/
+        /// <summary>Re-apply on the next update tick (so it runs after SMAPI's asset propagation and other mods' handlers).</summary>
+        public void RequestReapply() => this.ReapplyPending = true;
+
+        /// <summary>Call every update tick: if requested, re-apply composites to every horse in the world, including horses nobody is looking at.</summary>
+        /// <remarks>Horses are normally updated right before they draw, but a horse in another location isn't drawn, and menus such as the
+        /// Animals tab read <c>horse.Sprite.Texture</c> directly. This keeps every sprite on a current composite (or the live game texture).</remarks>
+        public void ProcessPendingReapply()
+        {
+            if (!this.ReapplyPending || !Context.IsWorldReady)
+                return;
+            this.ReapplyPending = false;
+            this.ReapplyAll();
+        }
+
+        public void ReapplyAll()
+        {
+            foreach (Horse horse in HorseUtil.GetAllHorses())
+            {
+                try
+                {
+                    this.ApplyTo(horse);
+                }
+                catch (Exception ex)
+                {
+                    Log.WarnOnce("reapply", $"Couldn't re-apply horse tack to '{horse.displayName}': {ex.Message}");
+                }
             }
         }
 
@@ -145,37 +201,59 @@ namespace MrGlim.HorseTack.Framework
         /*********
         ** Composition
         *********/
-        /// <summary>Compose base (chosen coat or current texture) + style + saddle + pad + bridle. Returns null if nothing applies.</summary>
+        /// <summary>Compose base (chosen coat or current texture) + style + pad + saddle + bridle. Returns null if nothing applies.</summary>
         private Texture2D? Compose(string baseName, TackSelection sel, string forWhat)
+        {
+            PixelData? px = ComposePixels(
+                sel,
+                getPixels: (id, shape) => this.Registry.GetPixels(id, shape),
+                coatShape: id => this.Registry.TryGet(id, out TackOption coat) && coat.Layer == TackLayer.Coat ? coat.Shape : null,
+                keepCurrentShape: this.Registry.KeepCurrentShape,
+                overlayOrder: this.Registry.OverlayOrder(sel),
+                loadBase: () => this.GetBasePixels(baseName)
+            );
+            if (px == null)
+                return null;
+
+            var tex = new Texture2D(Game1.graphics.GraphicsDevice, px.Width, px.Height);
+            tex.SetData(px.Data);
+            tex.Name = "MrGlim.HorseTack/" + sel.Key + this.Registry.SeasonKey(sel);
+            Log.Trace($"Composed {sel.Key} on {(sel.Coat != "" && this.Registry.TryGet(sel.Coat, out _) ? "HorseTack coat" : baseName)} for {forWhat}.");
+            return tex;
+        }
+
+        /// <summary>Pure pixel composition (no graphics device). A chosen coat this computer has is the whole base: the game's horse texture
+        /// (<paramref name="loadBase"/>) is only read for Keep current, or for a synced coat this computer doesn't have.</summary>
+        /// <returns>The composed sheet, or null if nothing changes the base (Keep current with no overlays, or nothing installed).</returns>
+        internal static PixelData? ComposePixels(TackSelection sel, Func<string, BodyShape, PixelData?> getPixels, Func<string, BodyShape?> coatShape,
+            BodyShape keepCurrentShape, IReadOnlyList<TackLayer> overlayOrder, Func<PixelData?> loadBase)
         {
             PixelData? basePx = null;
             bool changed = false;
 
             // Overlays pick the variant that fits the body underneath: a chosen coat knows its own shape; the game's own
             // texture (Keep current, or a synced coat this computer doesn't have) is Elle-shaped when her pack is loaded here.
-            BodyShape shape = this.Registry.KeepCurrentShape;
-            if (sel.Coat != "")
+            BodyShape shape = keepCurrentShape;
+            if (sel.Coat != "" && coatShape(sel.Coat) is BodyShape coatBody)
             {
-                basePx = this.Registry.GetPixels(sel.Coat);
-                if (basePx != null && this.Registry.TryGet(sel.Coat, out TackOption coat))
+                basePx = getPixels(sel.Coat, BodyShape.Vanilla);
+                if (basePx != null)
                 {
-                    shape = coat.Shape;
+                    shape = coatBody;
                     changed = true;
                 }
-                else
-                    basePx = null; // missing here: fall back to the current (vanilla or Elle) texture
             }
-            basePx ??= this.GetBasePixels(baseName);
+            basePx ??= loadBase(); // Keep current, or the chosen coat is missing here: the live game texture
             if (basePx == null)
                 return null;
 
             Color[] result = (Color[])basePx.Data.Clone();
-            foreach (TackLayer layer in this.Registry.OverlayOrder(sel))
+            foreach (TackLayer layer in overlayOrder)
             {
                 string id = sel.Get(layer);
                 if (id == "")
                     continue;
-                PixelData? overlay = this.Registry.GetPixels(id, shape);
+                PixelData? overlay = getPixels(id, shape);
                 if (overlay == null)
                     continue; // not installed on this computer: skip this layer (noted once in the trace log)
                 if (overlay.Width != basePx.Width || overlay.Height != basePx.Height)
@@ -187,14 +265,7 @@ namespace MrGlim.HorseTack.Framework
                 changed = true;
             }
 
-            if (!changed)
-                return null;
-
-            var tex = new Texture2D(Game1.graphics.GraphicsDevice, basePx.Width, basePx.Height);
-            tex.SetData(result);
-            tex.Name = "MrGlim.HorseTack/" + sel.Key + this.Registry.SeasonKey(sel);
-            Log.Trace($"Composed {sel.Key} on {baseName} for {forWhat}.");
-            return tex;
+            return changed ? new PixelData(basePx.Width, basePx.Height, result) : null;
         }
 
         private PixelData? GetBasePixels(string baseName)
@@ -244,6 +315,15 @@ namespace MrGlim.HorseTack.Framework
             this.PreviewCache.Clear();
             this.BasePixels.Clear();
             this.Generation++;
+            this.ReapplyPending = true; // move every horse onto a fresh composite next tick (after asset propagation)
+        }
+
+        /// <summary>Whether an invalidated asset is a horse base texture that composites were built from.</summary>
+        public bool UsesBase(string assetName)
+        {
+            string norm = assetName.Replace('/', '\\');
+            return norm.StartsWith(VanillaHorse, StringComparison.OrdinalIgnoreCase)
+                || this.BasePixels.Keys.Any(k => string.Equals(k.Replace('/', '\\'), norm, StringComparison.OrdinalIgnoreCase));
         }
 
         private void Retire(Texture2D tex)
@@ -252,17 +332,48 @@ namespace MrGlim.HorseTack.Framework
                 this.Retired.Add((tex, Game1.currentGameTime?.TotalGameTime.TotalSeconds ?? 0));
         }
 
-        /// <summary>Dispose retired textures after a grace period (call from an update tick).</summary>
+        /// <summary>Dispose retired textures after a grace period (call from an update tick). A texture still shown by any horse sprite
+        /// (e.g. a horse in another location that hasn't drawn since) is moved to a current composite first, never disposed under it.</summary>
         public void DisposeRetired()
         {
             double now = Game1.currentGameTime?.TotalGameTime.TotalSeconds ?? 0;
+            List<int> due = new();
             for (int i = this.Retired.Count - 1; i >= 0; i--)
             {
                 if (now - this.Retired[i].RetiredAt > 10)
+                    due.Add(i);
+            }
+            if (due.Count == 0)
+                return;
+
+            HashSet<Texture2D> inUse = new(ReferenceEqualityComparer.Instance);
+            if (Context.IsWorldReady)
+            {
+                var dueTextures = new HashSet<Texture2D>(due.Select(i => this.Retired[i].Texture), ReferenceEqualityComparer.Instance);
+                foreach (Horse horse in HorseUtil.GetAllHorses())
                 {
-                    this.Retired[i].Texture.Dispose();
-                    this.Retired.RemoveAt(i);
+                    AnimatedSprite? sprite = horse.Sprite;
+                    if (sprite?.spriteTexture == null || !dueTextures.Contains(sprite.spriteTexture))
+                        continue;
+                    try
+                    {
+                        this.ApplyTo(horse);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.WarnOnce("retire-reapply", $"Couldn't re-apply horse tack to '{horse.displayName}': {ex.Message}");
+                    }
+                    if (sprite.spriteTexture != null && dueTextures.Contains(sprite.spriteTexture))
+                        inUse.Add(sprite.spriteTexture); // still shown: keep it alive and try again next time
                 }
+            }
+
+            foreach (int i in due) // descending indexes
+            {
+                if (inUse.Contains(this.Retired[i].Texture))
+                    continue;
+                this.Retired[i].Texture.Dispose();
+                this.Retired.RemoveAt(i);
             }
         }
     }

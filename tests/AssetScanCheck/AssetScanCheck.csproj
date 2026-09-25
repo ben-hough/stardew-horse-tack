@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Unit check for Framework/AssetRegistry.cs: scans a temporary Mods/HorseTack/assets folder (mixed-case folders, prefixes, duplicates, bad sizes, @elle variants, collections.json, a fake Elle's Cuter Horses folder). -->
+  <!-- Unit check for Framework/AssetRegistry.cs (+ TextureManager.ComposePixels base independence): scans a temporary Mods/HorseTack/assets folder (mixed-case folders, prefixes, duplicates, bad sizes, @elle variants, collections.json, a fake Elle's Cuter Horses folder). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -16,6 +16,9 @@
     <Compile Include="..\..\Framework\TackLayer.cs" Link="TackLayer.cs" />
     <Compile Include="..\..\Framework\TackSelection.cs" Link="TackSelection.cs" />
     <Compile Include="..\..\Framework\Log.cs" Link="Log.cs" />
+    <Compile Include="..\..\Framework\TextureManager.cs" Link="TextureManager.cs" />
+    <Compile Include="..\..\Framework\Compositor.cs" Link="Compositor.cs" />
+    <Compile Include="..\..\Framework\HorseUtil.cs" Link="HorseUtil.cs" />
     <Compile Include="..\..\I18n.cs" Link="I18n.cs" />
     <Reference Include="MonoGame.Framework"><HintPath>$(GamePath)\MonoGame.Framework.dll</HintPath></Reference>
     <Reference Include="StardewModdingAPI"><HintPath>$(GamePath)\StardewModdingAPI.dll</HintPath></Reference>

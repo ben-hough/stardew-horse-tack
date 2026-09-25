@@ -77,6 +77,7 @@ Edit [b]config.json[/b] in the mod folder (it's created the first time you run t
 [*][b]Multiplayer Horse Reskin:[/b] please [b]remove it[/b]. Both mods replace the horse's texture, so they conflict. Horse Tack & Styling warns about it in the SMAPI console.
 [*][b]Alternative Textures[/b] skins on horses may also conflict. Use one or the other for a given horse.
 [*][b]Horse retextures[/b] work with [i]Keep current[/i]: the retexture stays as the coat and your tack goes on top.
+[*][b]Seasonal horse packs[/b] (Content Patcher packs that change the game's horse by season, for example [b]Bog's Witchy Farm Buildings[/b]): horses on [i]Keep current[/i] still change with the pack, and their tack is redrawn on the new look. A coat you [b]chose in Horse Tack & Styling[/b] is the mod's own texture, so it stays (with its tack) whatever the pack does.
 [*][b]Mods that replace the horse with a different body shape[/b] (for example Bog's Elk Spirit Horse and Stable): the tack is drawn for the standard horse shape (and Elle's), so it won't line up with a differently shaped animal. For that horse, choose [i]Keep current[/i] for the coat and leave the saddle, pad, bridle and styling at [i]None[/i].
 [*][b]Tractor Mod:[/b] tractors are never touched.
 [*]Built and tested with [b]SMAPI 4.5.2[/b] on [b]Stardew Valley 1.6.15[/b], on [b]Windows[/b]. It hasn't been tested on macOS, Linux, Android or in split-screen yet. If you try it there, please let me know how it goes.
@@ -103,6 +104,7 @@ Type these in the SMAPI console window:
 [*][b]horsetack_set <horse> <coat|saddle|pad|bridle|style> <id|none>[/b]: sets one layer.
 [*][b]horsetack_reset <horse>[/b]: removes all tack from a horse.
 [*][b]horsetack_reload[/b]: rescans the art folders (after you add or change PNGs).
+[*][b]horsetack_textures[/b]: (debug) shows which texture each horse is drawing, handy for bug reports.
 [/list]
 
 [size=5][b]FAQ[/b][/size]

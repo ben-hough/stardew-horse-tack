@@ -1,16 +1,17 @@
-# Horse Tack & Styling 1.4.0: Nexus Mods page, ready to paste
+# Horse Tack & Styling 1.4.1: Nexus Mods page, ready to paste
 
 Target: https://www.nexusmods.com/stardewvalley (Upload -> Upload a mod), account **MrGlim**. Same upload form as the Ghostwood Crook kit (mod 52912): **Create draft -> General -> Media -> Files -> Requirements -> Permissions**, then Preview -> Publish. The form rules and their sources are in the Ghostwood kit's `research.md`; the HorseTack-specific lookups are in `research.md` here.
 
 > **Order of operations (important for SMAPI update checks)**
 > 1. Create the draft (title, short description, game, category). Nexus assigns the mod ID right away (the number in `.../stardewvalley/mods/<ID>`).
-> 2. Rebuild the zip with `"UpdateKeys": [ "Nexus:<ID>" ]` (version stays **1.4.0**) using the one-command rebuild in section 7, and **then** upload that zip in the Files tab. The current zip has `"UpdateKeys": []` on purpose.
+> 2. Build the zip with `"UpdateKeys": [ "Nexus:<ID>" ]` using the one-command rebuild in section 7, and **then** upload that zip in the Files tab. **Done:** the draft is mod 52917, and the **1.4.1** zip (`share/HorseTack-1.4.1.zip`) already has `"UpdateKeys": [ "Nexus:52917" ]`. 1.4.1 is the first Nexus release (1.4.0 was never uploaded).
 
 Kit files (this folder):
 | File | Use |
 |---|---|
 | `description.bbcode` | Full description (General tab) |
-| `changelog.txt` | Files tab changelog (1.4.0) + full 1.0.0-1.4.0 history |
+| `changelog.txt` | Files tab changelog (1.4.1, with the 1.4.0 notes folded in) + full 1.0.0-1.4.1 history |
+| `paste/` | Ready-to-paste copies: `changelog-1.4.1.txt` (one change per line), `changelog-full.txt`, `file-description.txt` |
 | `file-description.txt` | Files tab file description |
 | `banner.png` | Header image, 1300x372 |
 | `thumbnail.png` | Gallery image 1 (becomes the thumbnail), 1920x1080 |
@@ -51,7 +52,7 @@ Apply these:
 | Field | Value |
 |---|---|
 | **Author** | `MrGlim` |
-| **Version** | `1.4.0` (semantic version, same as the manifest and the file) |
+| **Version** | `1.4.1` (semantic version, same as the manifest and the file) |
 | **Team / other users with access** | none |
 | **Comments** | Enabled |
 | **Bug tracking** | Enabled (misalignment reports: "which coat + which piece") |
@@ -82,15 +83,15 @@ The four screenshots are Ben's own in-game captures (Windows, SMAPI 4.5.2, SDV 1
 ## 3. Files tab
 | Field | Value |
 |---|---|
-| **Archive** | `HorseTack-1.4.0.zip` **rebuilt with the UpdateKey** (section 7). One top-level `HorseTack/` folder: `HorseTack.dll, HorseTack.pdb, manifest.json, README.txt (public release readme, from docs/README.txt), i18n/default.json, assets/ (collections.json, README.txt, 110 PNGs)`. About 340 KB. No config.json. |
+| **Archive** | `HorseTack-1.4.1.zip` (built with the `Nexus:52917` UpdateKey, section 7). One top-level `HorseTack/` folder: `HorseTack.dll, HorseTack.pdb, manifest.json, README.txt (public release readme, from docs/README.txt), i18n/default.json, assets/ (collections.json, README.txt, 110 PNGs)`. About 340 KB. No config.json. |
 | **File (display) name** | `Horse Tack and Styling` (22 chars; the API allows only letters, digits, space and `_'().-`, so no `&`) |
-| **Version** | `1.4.0` |
+| **Version** | `1.4.1` |
 | **Category** | **Main Files** |
-| **Description** | Paste `file-description.txt` (435 chars) |
+| **Description** | Paste `paste/file-description.txt` (435 chars) |
 | **Update mod version to match this file** | Yes |
 | **Mod manager download** | Allowed; primary mod manager download |
 | **Show requirements pop-up** | Yes (SMAPI) |
-| **Changelog entry** | Paste the 1.4.0 block from `changelog.txt` |
+| **Changelog entry** | Paste `paste/changelog-1.4.1.txt` (the 1.4.1 block of `changelog.txt`; 1.4.1 is the first Nexus release, so the 1.4.0 notes are folded in) |
 
 ## 4. Requirements tab
 | Type | Entry | Note field |
@@ -131,38 +132,37 @@ AI disclosure: This mod was built with heavy AI assistance. The C# code, and the
 ```
 Declare it in (1) **Tags -> Generative AI Usage**: `AI-Generated Content` + `AI Media` (the actual requirement), (2) the description's AI disclosure section, (3) optionally the Author notes.
 
-## 7. Manifest change after the draft exists (one command)
-The zip currently ships `"UpdateKeys": []`. Once the draft has an ID:
+## 7. Release build with the UpdateKey (one command)
+The repo manifest already has `"UpdateKeys": [ "Nexus:52917" ]` and Version 1.4.1; the scripts take the version from the manifest (the install script from `-Version`, default 1.4.1).
 
 **Box (one command):**
 ```
 bash /workspace/codex-horsetack/nexus-page/tools/rebuild_with_updatekey.sh <ID> --commit
 ```
-It sets `"UpdateKeys": [ "Nexus:<ID>" ]` in the repo manifest (Version stays 1.4.0), does the Release build (0 warnings required) and AssetScanCheck, stages and zips `share/HorseTack-1.4.0.zip` (the old zip is kept once as `share/HorseTack-1.4.0-no-updatekey.zip`), runs `zip_check.py --expect-updatekey Nexus:<ID>`, writes `HorseTack-1.4.0.zip.sha256` and prints the SHA-256. `--commit` commits and pushes only `manifest.json` (and refuses if anything else is dirty); leave it off to keep the change local.
+It makes sure `"UpdateKeys": [ "Nexus:<ID>" ]` is in the repo manifest (the Version is left as it is), does the Release build (0 warnings required) and AssetScanCheck, stages and zips `share/HorseTack-<version>.zip`, runs `zip_check.py --expect-updatekey Nexus:<ID>` (which also expects the manifest version and a README.txt titled with it), writes `HorseTack-<version>.zip.sha256` and prints the SHA-256. `--commit` commits and pushes only `manifest.json` (and refuses if anything else is dirty); leave it off to keep the change local.
 
-**PC (after CopyFromBox of the zip to `C:\Users\Glim\codex-stage\HorseTack-1.4.0.zip`):**
+**PC (after CopyFromBox of the zip to `C:\Users\Glim\codex-stage\HorseTack-1.4.1.zip`), with Stardew closed:**
 ```
-powershell -ExecutionPolicy Bypass -File E:\Codex-Mods\stardew\HorseTack\nexus-page\tools\install-horsetack.ps1 -NexusId <ID> -Sha256 <hash printed by the box>
+powershell -ExecutionPolicy Bypass -File E:\Codex-Mods\stardew\HorseTack\nexus-page\tools\install-horsetack.ps1 -NexusId 52917 -Sha256 <hash printed by the box> -Version 1.4.1
 ```
-It checks the staged zip's hash and manifest, copies it to `E:\Codex-Mods\stardew\HorseTack\release\` (the old zip is kept once as `HorseTack-1.4.0-no-updatekey.zip`), runs `git pull --ff-only` in the E: clone (or patches its manifest in place if the change wasn't pushed), reinstalls `Mods\HorseTack` keeping `config.json` byte-for-byte (backup in `codex-stage\horsetack-config-backup.json`), and hash-checks every installed file against the zip. Both scripts were dry-run tested against temporary folders (fake ID 99999, all PASS) and changed nothing real.
+It refuses to run while Stardew/SMAPI is open, checks the staged zip's hash and manifest, copies it to `E:\Codex-Mods\stardew\HorseTack\release\`, runs `git pull --ff-only` in the E: clone (or patches its manifest in place if the change wasn't pushed), reinstalls `Mods\HorseTack` keeping `config.json` byte-for-byte (copied as raw bytes; backup in `codex-stage\horsetack-config-backup.json`), and hash-checks every installed file against the zip. Both scripts were dry-run tested against temporary folders (fake ID 99999, all PASS) and changed nothing real.
 
-Then upload the new `HorseTack-1.4.0.zip` in the Files tab. Keep the page, file and manifest version all at `1.4.0`.
+Then upload `HorseTack-1.4.1.zip` in the Files tab. Keep the page, file and manifest version all at `1.4.1`.
 
-## 8. Zip check (current 1.4.0 zip, before the UpdateKey)
-`python3 /workspace/codex-horsetack/nexus-page/tools/zip_check.py /workspace/codex-horsetack/share/HorseTack-1.4.0.zip`
-- sha256 `61a7a0970bdd9ce2e8c5fe95bc4358d9d8025b8e9ca09e6c81b158b363c3753a`, 117 files, single `HorseTack/` folder
-- manifest Version `1.4.0`, UniqueID `MrGlim.HorseTack`, UpdateKeys `[]`
-- no config.json / deps.json / xnb
+## 8. Zip check (1.4.1 with the UpdateKey)
+`python3 /workspace/codex-horsetack/nexus-page/tools/zip_check.py /workspace/codex-horsetack/share/HorseTack-1.4.1.zip --expect-updatekey Nexus:52917`
+- 117 files, single `HorseTack/` folder, about 340 KB; SHA-256 in `share/HorseTack-1.4.1.zip.sha256` (and in the 1.4.1 release report)
+- manifest Version `1.4.1`, UniqueID `MrGlim.HorseTack`, UpdateKeys `["Nexus:52917"]`
+- no config.json / deps.json / xnb; ships `README.txt` (public 1.4.1 readme from `docs/README.txt`), no `README-TESTERS.txt`
 - all 110 PNGs byte-identical to the repo's own `assets/`
 - no file matches any of 329 third-party reference files (Elle's Cuter Horses reference copy + codex-thirdparty) by SHA-256 or decoded pixels
-- RESULT: PASS (run before the readme change)
-- Since then the shipped readme is `HorseTack/README.txt` (public 1.4.0 text from `docs/README.txt`), and `zip_check.py` requires it and rejects `README-TESTERS.txt`. So the old zip now fails that one check by design; the UpdateKey rebuild produces the new layout.
+- RESULT: PASS
 
 ## 9. Pre-publish checklist
-- [x] Draft created (52917) -> rebuild run (box + PC) -> zip check PASS with `Nexus:52917`
+- [x] Draft created (52917) -> 1.4.1 zip built with `Nexus:52917` -> zip check PASS
 - [ ] General: name, summary, category Pets / Horses (or Visuals and Graphics), description pasted, English, tags incl. AI-Generated Content + AI Media
 - [ ] Media: banner.png header; gallery order thumbnail.png (first = thumbnail), ingame-4, ingame-1, ingame-2, ingame-3, gallery-2 ... gallery-6
-- [ ] Files: main file 1.4.0, display name `Horse Tack and Styling`, file description, changelog
+- [ ] Files: main file 1.4.1, display name `Horse Tack and Styling`, file description, changelog
 - [ ] Requirements: SMAPI (2400) only
 - [ ] Permissions: "other authors' assets / credited" option (not "all assets are mine") + author notes + file credits
 - [ ] Preview -> Publish

@@ -1,7 +1,7 @@
-"""Builds the Nexus page images for Horse Tack & Styling 1.4.0.
+"""Builds the Nexus page images for Horse Tack & Styling (1.4.x; the art is unchanged in 1.4.1).
 
 Only HorseTack's own art is used: the 16 coats and the tack/styling overlays in the
-repo's assets/ folder (the same PNGs that ship in the 1.4.0 zip). No vanilla horse
+repo's assets/ folder (the same PNGs that ship in the 1.4.x zips). No vanilla horse
 sheet, no Elle's Cuter Horses art, no other third-party art, no generative image model.
 Every look respects the wizard's rules: one coat, one styling, one pad (only with a
 saddle), one saddle, one bridle, drawn coat -> styling -> pad -> saddle -> bridle.

@@ -111,9 +111,12 @@ namespace MrGlim.HorseTack
             this.PublishHostRules();
         }
 
+        /// <remarks>Low priority so it runs after Content Patcher's day-start context update (seasonal horse packs).</remarks>
+        [EventPriority(EventPriority.Low)]
         private void OnDayStarted(object? sender, DayStartedEventArgs e)
         {
             this.PublishHostRules();
+            this.Textures.RequestReapply(); // day-start sprite reloads (and other mods' texture edits) are covered next tick
 
             // per-season art: composites are keyed by season already; drop the old season's textures when it changes
             string season = this.Registry.CurrentSeason();
@@ -144,6 +147,7 @@ namespace MrGlim.HorseTack
 
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
         {
+            this.Textures.ProcessPendingReapply();
             if (e.IsMultipleOf(120))
                 this.Textures.DisposeRetired();
         }
@@ -178,10 +182,18 @@ namespace MrGlim.HorseTack
             }, AssetEditPriority.Late);
         }
 
+        /// <summary>A horse base texture changed (e.g. a Content Patcher pack with a seasonal horse, or <c>patch reload</c>).</summary>
+        /// <remarks>SMAPI raises this right before it propagates the change (textures are edited in place, so horses on Keep current follow
+        /// the new art by themselves). HorseTack's composites are its own textures and aren't touched by propagation; this drops the ones
+        /// built from the old base and re-applies every horse on the next tick, after propagation. Chosen HorseTack coats don't read the base
+        /// at all, so they come back unchanged.</remarks>
         private void OnAssetsInvalidated(object? sender, AssetsInvalidatedEventArgs e)
         {
-            if (e.NamesWithoutLocale.Any(name => name.IsEquivalentTo("Animals/horse") || name.StartsWith("Animals/horse")))
+            if (e.NamesWithoutLocale.Any(name => this.Textures.UsesBase(name.Name)))
+            {
+                Log.Trace("A horse base texture was invalidated; rebuilding horse composites after propagation.");
                 this.Textures.InvalidateAll();
+            }
         }
 
         private void OnButtonsChanged(object? sender, ButtonsChangedEventArgs e)
@@ -357,12 +369,56 @@ namespace MrGlim.HorseTack
                 this.Service.RequestChange(horse, new TackSelection());
             });
 
+            helper.ConsoleCommands.Add("horsetack_textures", "Debug: show which texture each horse is drawing (HorseTack composite or the game's horse texture) and where its coat pixels come from.", (_, _) =>
+            {
+                if (!this.RequireWorld())
+                    return;
+                foreach (Horse horse in HorseUtil.GetAllHorses())
+                    Log.Info(this.DescribeTexture(horse));
+            });
+
             helper.ConsoleCommands.Add("horsetack_reload", "Rescan art folders and rebuild horse textures.", (_, _) =>
             {
                 Log.ResetOnce();
                 this.Registry.Reload();
                 this.Textures.InvalidateAll();
             });
+        }
+
+        /// <summary>One line per horse for <c>horsetack_textures</c>.</summary>
+        private string DescribeTexture(Horse horse)
+        {
+            AnimatedSprite? sprite = horse.Sprite;
+            string where = horse.currentLocation?.NameOrUniqueName ?? "?";
+            TackSelection sel = TackSelection.FromModData(horse);
+            if (sprite?.spriteTexture == null)
+                return $"{HorseUtil.Name(horse)} @ {where}: no texture loaded yet (sel={sel.Key})";
+
+            Texture2D tex = sprite.spriteTexture;
+            bool ours = this.Textures.IsComposite(sprite, out int gen);
+            string line = $"{HorseUtil.Name(horse)} @ {where}: sel=[{sel.Key}] textureName={sprite.overrideTextureName ?? sprite.textureName.Value} "
+                + $"active='{tex.Name}' {(ours ? $"HorseTack composite (gen {gen}/{this.Textures.CurrentGeneration})" : "game texture")} disposed={tex.IsDisposed}";
+            if (tex.IsDisposed)
+                return line;
+
+            // compare the pixels the horse is drawing with the chosen coat and with the live game texture
+            try
+            {
+                var active = new Color[tex.Width * tex.Height];
+                tex.GetData(active);
+                string Match(Color[]? other) => other == null || other.Length != active.Length ? "n/a" : $"{active.Where((c, i) => c == other[i]).Count() * 100.0 / active.Length:0}%";
+
+                Color[]? coat = sel.Coat != "" ? this.Registry.GetPixels(sel.Coat)?.Data : null;
+                Texture2D live = Game1.content.Load<Texture2D>(sprite.overrideTextureName ?? sprite.textureName.Value);
+                var livePx = new Color[live.Width * live.Height];
+                live.GetData(livePx);
+                line += $" | pixels same as chosen coat: {Match(coat)}, same as live game texture: {Match(livePx)}";
+            }
+            catch (Exception ex)
+            {
+                line += $" | pixel compare failed: {ex.Message}";
+            }
+            return line;
         }
 
         private string Describe(TackLayer layer, string id) => id == "" ? (layer == TackLayer.Coat ? "keep" : "none") : id;

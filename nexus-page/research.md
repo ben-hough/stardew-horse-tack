@@ -9,6 +9,10 @@ The Nexus upload-form rules (tabs, field limits, AI tagging rules, permissions p
 - `legacyTags(gameId:1303)`: the exact tag names used on the page exist: `AI-Generated Content`, `AI Media`, `AI Assisted` (Generative AI Usage); `SMAPI` (Requirements); `Version 1.6 Compatible` (Compatibility); `Sprites`, `User Interface` (Components). There's no Cosmetic/Visual attribute tag.
 - Stardew categories include **Pets / Horses (8)** and **Visuals and Graphics (25)**.
 
+## 1.4.1 (first Nexus release)
+- Manifest Version 1.4.1, `UpdateKeys: [ "Nexus:52917" ]`. Art unchanged from 1.4.0 (same 57 pieces / 110 PNGs), so the piece counts and images below still hold.
+- New compatibility claim ("seasonal horse packs like Bog's still change Keep current horses, a chosen HorseTack coat stays"), checked against the code: SMAPI 4.5.2 `CoreAssetPropagator` edits the cached `Animals/horse` texture in place and never touches horse sprites; a chosen coat is a HorseTack-owned texture composed only from HorseTack pixels (`TextureManager.ComposePixels`, AssetScanCheck section 8), and every horse is re-applied the tick after an `Animals/horse` invalidation. In-game test with a private seasonal CP test pack: see the 1.4.1 report.
+
 ## Claims checked against the code/assets at commit 1bbac0fa (1.4.0)
 - Manifest: Name "Horse Tack & Styling", Version 1.4.0, UniqueID MrGlim.HorseTack, MinimumApiVersion 4.0.0, MinimumGameVersion 1.6.0, optional deps GMCM + Elle.CuterHorses, `UpdateKeys: []`.
 - Piece count: 57 base files = 16 coats, 12 saddles, 11 pads, 9 bridles, 9 styles (seasonal `.spring/.fall/.winter` files are trims of Moss Cloak and Antler Crown, not extra options). Every overlay has an `@elle` fit variant.

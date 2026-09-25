@@ -1,14 +1,15 @@
-# Install the rebuilt HorseTack 1.4.0 zip (with the Nexus UpdateKey) on Ben's PC.
+# Install a HorseTack release zip (with the Nexus UpdateKey) on Ben's PC.
 # Run AFTER rebuild_with_updatekey.sh on the box and CopyFromBox of the zip to C:\Users\Glim\codex-stage.
-#   powershell -ExecutionPolicy Bypass -File E:\Codex-Mods\stardew\HorseTack\nexus-page\tools\install-horsetack.ps1 -NexusId <id> -Sha256 <hash from the box>
-# Steps: verify staged zip hash + manifest (1.4.0, UpdateKeys Nexus:<id>) -> copy to E:\...\HorseTack\release
-# (the old no-UpdateKey zip is kept once as HorseTack-1.4.0-no-updatekey.zip) -> E: clone manifest (git pull --ff-only,
-# else patch UpdateKeys in place) -> reinstall Mods\HorseTack keeping config.json -> hash-check every installed file.
+#   powershell -ExecutionPolicy Bypass -File E:\Codex-Mods\stardew\HorseTack\nexus-page\tools\install-horsetack.ps1 -NexusId <id> -Sha256 <hash from the box> [-Version 1.4.1]
+# Steps: refuse while Stardew/SMAPI is running -> verify staged zip hash + manifest (Version, UpdateKeys Nexus:<id>)
+# -> copy to E:\...\HorseTack\release -> E: clone manifest (git pull --ff-only, else patch UpdateKeys in place)
+# -> reinstall Mods\HorseTack keeping config.json byte-for-byte -> hash-check every installed file.
 # Written for Windows PowerShell 5.1 (no Get-Content -Raw).
 param(
   [Parameter(Mandatory = $true)][string]$NexusId,
   [Parameter(Mandatory = $true)][string]$Sha256,
-  [string]$StageZip = 'C:\Users\Glim\codex-stage\HorseTack-1.4.0.zip',
+  [string]$Version = '1.4.1',
+  [string]$StageZip = '',
   [string]$RepoDir = 'E:\Codex-Mods\stardew\HorseTack',
   [string]$ModsDir = 'C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods',
   [string]$ConfigBackup = 'C:\Users\Glim\codex-stage\horsetack-config-backup.json',
@@ -21,7 +22,12 @@ function FileSha($p) { (Get-FileHash -LiteralPath $p -Algorithm SHA256).Hash.ToL
 function StreamSha($s) { $h = [Security.Cryptography.SHA256]::Create(); try { ([BitConverter]::ToString($h.ComputeHash($s)) -replace '-', '').ToLower() } finally { $h.Dispose() } }
 
 if ($NexusId -notmatch '^\d+$') { Write-Output "FAIL NexusId must be a number"; exit 2 }
+if ($Version -notmatch '^\d+\.\d+\.\d+$') { Write-Output "FAIL Version must look like 1.4.1"; exit 2 }
+if (-not $StageZip) { $StageZip = "C:\Users\Glim\codex-stage\HorseTack-$Version.zip" }
 $key = "Nexus:$NexusId"
+$verRx = '"Version"\s*:\s*"' + [regex]::Escape($Version) + '"'
+$running = Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -match '^(StardewModdingAPI|Stardew Valley)$' }
+if ($running) { Write-Output "FAIL Stardew/SMAPI is running (PID $($running.Id -join ', ')); close it first (nothing changed)"; exit 1 }
 
 # 1. staged zip
 if (-not (Test-Path -LiteralPath $StageZip)) { Write-Output "FAIL missing $StageZip (CopyFromBox it first)"; exit 1 }
@@ -31,7 +37,7 @@ $z = [IO.Compression.ZipFile]::OpenRead($StageZip)
 try {
   $m = $z.GetEntry('HorseTack/manifest.json')
   $r = New-Object IO.StreamReader($m.Open()); $mtext = $r.ReadToEnd(); $r.Close()
-  Check ($mtext -match '"Version"\s*:\s*"1\.4\.0"') 'zip manifest Version 1.4.0'
+  Check ($mtext -match $verRx) "zip manifest Version $Version"
   Check ($mtext -match ('"UpdateKeys"\s*:\s*\[\s*"' + [regex]::Escape($key) + '"\s*\]')) "zip manifest UpdateKeys [$key]"
   Check (-not ($z.Entries | Where-Object { $_.FullName -match 'config\.json$|deps\.json$' })) 'zip has no config.json / deps.json'
 } finally { $z.Dispose() }
@@ -40,12 +46,7 @@ if ($fail) { Write-Output 'RESULT: FAIL (nothing changed)'; exit 1 }
 # 2. E:\...\release
 $rel = Join-Path $RepoDir 'release'
 if (-not (Test-Path -LiteralPath $rel)) { New-Item -ItemType Directory -Path $rel | Out-Null }
-$relZip = Join-Path $rel 'HorseTack-1.4.0.zip'
-$relOld = Join-Path $rel 'HorseTack-1.4.0-no-updatekey.zip'
-if ((Test-Path -LiteralPath $relZip) -and -not (Test-Path -LiteralPath $relOld) -and ((FileSha $relZip) -ne $zipSha)) {
-  Copy-Item -LiteralPath $relZip -Destination $relOld
-  Write-Output "kept previous zip as $relOld"
-}
+$relZip = Join-Path $rel "HorseTack-$Version.zip"
 Copy-Item -LiteralPath $StageZip -Destination $relZip -Force
 Check ((FileSha $relZip) -eq $zipSha) "E: release copy $relZip"
 
@@ -62,19 +63,19 @@ if ($mt -notmatch [regex]::Escape($key)) {
   Write-Output 'E: manifest patched in place (not committed; box commit + pull keeps them in sync)'
 }
 $mt = [IO.File]::ReadAllText($man)
-Check (($mt -match [regex]::Escape($key)) -and ($mt -match '"Version"\s*:\s*"1\.4\.0"')) "E: clone manifest has $key and 1.4.0"
+Check (($mt -match [regex]::Escape($key)) -and ($mt -match $verRx)) "E: clone manifest has $key and $Version"
 
 # 4. reinstall into Mods, keeping config.json
 $dest = Join-Path $ModsDir 'HorseTack'
 $cfg = Join-Path $dest 'config.json'
-$cfgText = $null
+$cfgBytes = $null
 if (Test-Path -LiteralPath $cfg) {
-  $cfgText = [IO.File]::ReadAllText($cfg)
-  [IO.File]::WriteAllText($ConfigBackup, $cfgText, (New-Object Text.UTF8Encoding($false)))
+  $cfgBytes = [IO.File]::ReadAllBytes($cfg)
+  [IO.File]::WriteAllBytes($ConfigBackup, $cfgBytes)
 }
 if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
 [IO.Compression.ZipFile]::ExtractToDirectory($StageZip, $ModsDir)
-if ($cfgText -ne $null) { [IO.File]::WriteAllText($cfg, $cfgText, (New-Object Text.UTF8Encoding($false))) }
+if ($cfgBytes -ne $null) { [IO.File]::WriteAllBytes($cfg, $cfgBytes) }
 
 # 5. hash check installed files against the zip
 $z = [IO.Compression.ZipFile]::OpenRead($StageZip)
@@ -89,7 +90,7 @@ try {
   }
 } finally { $z.Dispose() }
 Check ($bad -eq 0) "installed $n files match the zip byte for byte"
-if ($cfgText -ne $null) { Check ([IO.File]::ReadAllText($cfg) -eq $cfgText) 'config.json kept unchanged' }
+if ($cfgBytes -ne $null) { Check ((FileSha $cfg) -eq (FileSha $ConfigBackup)) 'config.json kept byte-for-byte' }
 $im = [IO.File]::ReadAllText((Join-Path $dest 'manifest.json'))
-Check ($im -match [regex]::Escape($key)) "installed manifest has $key"
+Check (($im -match [regex]::Escape($key)) -and ($im -match $verRx)) "installed manifest has $key and $Version"
 if ($fail) { Write-Output 'RESULT: FAIL'; exit 1 } else { Write-Output "RESULT: PASS  (zip sha256 $zipSha)" }

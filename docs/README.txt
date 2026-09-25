@@ -1,4 +1,4 @@
-Horse Tack & Styling 1.4.0 by MrGlim
+Horse Tack & Styling 1.4.1 by MrGlim
 
 A stable wizard for dressing up your horse: pick its coat, saddle, saddle pad, bridle
 and styling separately, with a live preview. Includes 57 original pieces
@@ -39,13 +39,16 @@ Only the horse's owner or the host can restyle a horse (host config: AnyoneCanEd
 Optional hotkey: set OpenWizardKey in Mods\HorseTack\config.json (created on first
 launch) or in Generic Mod Config Menu.
 SMAPI console: horsetack_open, horsetack_list, horsetack_options, horsetack_set,
-horsetack_reset, horsetack_reload.
+horsetack_reset, horsetack_reload, horsetack_textures (debug).
 
 UNINSTALL
 Delete Mods\HorseTack. Horses go back to their normal look; the saved choices are
 small text entries on each horse that the game ignores without the mod.
 
 NOTES
+Seasonal horse packs (Content Patcher packs that change the game's horse by season,
+such as Bog's Witchy Farm Buildings) still change horses left on "Keep current".
+A coat you pick in HorseTack is HorseTack's own texture and stays, with its tack.
 Built and tested with SMAPI 4.5.2 on Stardew Valley 1.6.15 (Windows).
 Found a problem? Please report it on the mod's Nexus Mods page or on GitHub, and
 say which coat + which piece if something looks misaligned.
