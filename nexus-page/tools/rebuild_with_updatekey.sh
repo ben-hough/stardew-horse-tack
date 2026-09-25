@@ -3,7 +3,7 @@
 #   usage: rebuild_with_updatekey.sh <NexusModId> [--commit]
 # - sets "UpdateKeys": [ "Nexus:<id>" ] in the repo manifest (Version stays 1.4.0)
 # - Release build (must be 0 warnings) + AssetScanCheck
-# - stages HorseTack/ (dll, pdb, manifest, i18n, assets, README-TESTERS.txt; no deps.json/config.json)
+# - stages HorseTack/ (dll, pdb, manifest, i18n, assets, README.txt from docs/README.txt; no deps.json/config.json)
 # - writes /workspace/codex-horsetack/share/HorseTack-1.4.0.zip (old one kept as HorseTack-1.4.0-no-updatekey.zip)
 # - runs zip_check.py --expect-updatekey Nexus:<id> and prints the SHA-256 for the PC install script
 # - --commit: commit + push only manifest.json ("Add Nexus UpdateKey") if the tree is otherwise clean
@@ -33,7 +33,7 @@ echo "$log" | grep -qE "^\s*0 Error\(s\)" || { echo "build has errors"; exit 1; 
 
 rm -rf "$W/pkg/HorseTack"; mkdir -p "$W/pkg/HorseTack"
 cp -r bin/Release/HorseTack.dll bin/Release/HorseTack.pdb bin/Release/manifest.json bin/Release/i18n bin/Release/assets "$W/pkg/HorseTack/"
-cp docs/README-TESTERS.txt "$W/pkg/HorseTack/"
+cp docs/README.txt "$W/pkg/HorseTack/README.txt"
 rm -f "$W/pkg/HorseTack/config.json" "$W/pkg/HorseTack/HorseTack.deps.json"
 
 Z=$W/share/HorseTack-1.4.0.zip

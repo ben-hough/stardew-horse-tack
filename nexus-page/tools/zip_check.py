@@ -62,8 +62,13 @@ def main():
     check(not mism, "every PNG is byte-identical to the repo's own assets/" + (f" (mismatch: {mism[:5]})" if mism else ""))
     hits = [n for n in names if sha(z.read(n)) in third_sha or (n.endswith(".png") and pix(z.read(n)) in third_pix)]
     check(not hits, f"no file matches any of {nthird} third-party reference files (sha256 or pixels)" + (f" HITS: {hits}" if hits else ""))
-    for req in ["HorseTack/HorseTack.dll", "HorseTack/manifest.json", "HorseTack/i18n/default.json", "HorseTack/assets/collections.json"]:
+    for req in ["HorseTack/HorseTack.dll", "HorseTack/manifest.json", "HorseTack/README.txt", "HorseTack/i18n/default.json",
+                "HorseTack/assets/collections.json", "HorseTack/assets/README.txt"]:
         check(req in names, f"contains {req}")
+    check("HorseTack/README-TESTERS.txt" not in names, "no leftover README-TESTERS.txt (the release readme ships as README.txt)")
+    if "HorseTack/README.txt" in names:
+        rd = z.read("HorseTack/README.txt").decode("utf-8-sig")
+        check("1.4.0" in rd and "test build" not in rd.lower(), "README.txt is the public 1.4.0 readme (no 'test build' wording)")
     print("RESULT:", "PASS" if ok else "FAIL")
     sys.exit(0 if ok else 1)
 
