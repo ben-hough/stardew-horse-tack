@@ -1,0 +1,11 @@
+{
+  "Name": "[HT] My Horse Art",
+  "Author": "You",
+  "Version": "1.0.0",
+  "Description": "Extra coats and tack for Horse Tack & Styling.",
+  "UniqueID": "You.MyHorseArt",
+  "UpdateKeys": [],
+  "ContentPackFor": {
+    "UniqueID": "MrGlim.HorseTack"
+  }
+}

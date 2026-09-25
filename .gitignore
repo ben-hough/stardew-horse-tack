@@ -1,0 +1,29 @@
+# build output
+bin/
+obj/
+*.user
+.vs/
+*.zip
+
+# game / SMAPI reference assemblies - never commit
+refs/
+*.dll
+*.pdb
+*.xnb
+
+# Elle's Cuter Horses art and anything derived from it (install Elle's mod separately)
+poc/
+previews/
+elle/
+**/Elle*/
+assets/coats/*.png
+assets/saddles/*.png
+assets/pads/*.png
+assets/bridles/*.png
+assets/styles/*.png
+tests/**/data/
+
+# secrets
+.env
+*.token
+secrets.*

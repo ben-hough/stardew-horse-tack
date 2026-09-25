@@ -1,0 +1,53 @@
+{
+  // wizard
+  "wizard.title": "Stable Wizard",
+  "wizard.step": "Step {{current}} of {{total}}: {{name}}",
+  "wizard.owner": "Owner: {{owner}}",
+  "wizard.confirm-hint": "Press Apply to save. Everyone with Horse Tack & Styling and the same art mods will see this look.",
+
+  "step.horse": "Horse",
+  "step.coat": "Coat",
+  "step.saddle": "Saddle",
+  "step.pad": "Saddle pad",
+  "step.bridle": "Bridle",
+  "step.style": "Styling",
+  "step.confirm": "Confirm",
+
+  "button.back": "Back",
+  "button.next": "Next",
+  "button.apply": "Apply",
+  "button.cancel": "Cancel",
+
+  "option.keep": "Keep current",
+  "option.none": "None",
+  "option.missing": "{{id}} (not installed)",
+
+  "style.prismatic": "Prismatic hair",
+  "style.generic": "{{name}} overlay",
+
+  "horse.unnamed": "(unnamed horse)",
+  "horse.no-owner": "nobody",
+
+  // messages
+  "message.saved": "{{horse}}'s new look is saved.",
+  "message.no-art": "No horse art found. Install Elle's Cuter Horses or a Horse Tack & Styling content pack.",
+  "message.no-horses": "There's no horse you can restyle here.",
+  "message.not-allowed": "Only {{horse}}'s owner or the host can restyle this horse.",
+  "message.horse-not-found": "That horse couldn't be found.",
+  "message.tractor": "That's a tractor, not a horse.",
+  "message.dismount-first": "Someone is riding {{horse}}. Try again after they dismount.",
+  "message.unknown-option": "The host doesn't have the art '{{id}}' installed.",
+  "message.host-missing-mod": "The host needs Horse Tack & Styling installed to restyle horses.",
+
+  // config
+  "config.key.name": "Open wizard key",
+  "config.key.desc": "Opens the stable wizard anywhere. Leave empty to turn it off (default).",
+  "config.anyone.name": "Anyone can restyle",
+  "config.anyone.desc": "Let every player restyle every horse. Off = only the horse's owner or the host. The host's setting is the one that counts.",
+  "config.tiles.name": "Stable action spot",
+  "config.tiles.desc": "Add the wizard to the stable's two front corner posts.",
+  "config.log.name": "Log verbosity",
+  "config.log.desc": "Verbose writes extra details to the SMAPI console.",
+  "config.log.normal": "Normal",
+  "config.log.verbose": "Verbose"
+}

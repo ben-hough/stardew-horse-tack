@@ -1,0 +1,15 @@
+{
+  "Name": "Horse Tack & Styling",
+  "Author": "MrGlim",
+  "Version": "1.0.0",
+  "Description": "A stable wizard to dress each horse with its own coat, saddle, pad, bridle and styling, synced in multiplayer. Uses art from Elle's Cuter Horses (installed separately) and HorseTack content packs.",
+  "UniqueID": "MrGlim.HorseTack",
+  "EntryDll": "HorseTack.dll",
+  "MinimumApiVersion": "4.0.0",
+  "MinimumGameVersion": "1.6.0",
+  "Dependencies": [
+    { "UniqueID": "Elle.CuterHorses", "IsRequired": false },
+    { "UniqueID": "spacechase0.GenericModConfigMenu", "IsRequired": false }
+  ],
+  "UpdateKeys": []
+}
