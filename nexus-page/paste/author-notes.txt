@@ -1,0 +1,4 @@
+The source code is MIT-licensed on GitHub: https://github.com/ben-hough/stardew-horse-tack
+Feel free to fix, update or improve this mod as long as you credit MrGlim and link back to this page. Please ask before re-uploading it elsewhere. Don't include any part of it in anything sold for money.
+The MIT license covers the mod's code, docs and its own generated art, not game assets or Elle's Cuter Horses art (which is never included; it's read from the player's own install).
+Note: the code and art scripts were produced with AI assistance (see the AI disclosure in the description).

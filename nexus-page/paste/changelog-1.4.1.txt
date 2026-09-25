@@ -1,10 +1,11 @@
-First Nexus release (includes everything from 1.4.0 below).
-Chosen coats always win over seasonal horse packs: a coat you pick in Horse Tack & Styling (and its tack) never depends on the game's horse texture, so Content Patcher packs that change the horse by season or condition (e.g. Bog's Witchy Farm Buildings), "patch reload" and SMAPI's texture reloads can't replace it. Horses on Keep current still follow those packs, with their tack redrawn on the new look.
-Every horse is re-applied right after the game's horse texture changes, and the day-start update now runs after Content Patcher's.
-Fixed: after a horse texture change, a horse nobody was looking at (for example on the farm while you were indoors) could be left on a released texture, which the Animals tab then tried to draw.
-New debug console command: horsetack_textures.
-From 1.4.0: new Forest Spirit collection (8 original pieces): Spirit Coat, Heartwood and Root & Stone saddles, Moss Cloak pad, Glowing Runes and Vine bridles, Antler Crown and Wisp Halo styling. 57 original pieces in total: 16 coats, 12 saddles, 11 pads, 9 bridles, 9 styling overlays.
-From 1.4.0: seasonal art. Optional Name.<season>.png files are picked from the in-game season (Moss Cloak and Antler Crown have spring, fall and winter trims). Same id on every computer.
-From 1.4.0: saddle pads now draw under saddles (this also fixes Elle's pads painting over HorseTack saddles).
-From 1.4.0: art pass. Fringe on all pads, Familiar easier to see on dark coats and from behind, real mushrooms on Moss & Mushroom, stronger Red Dun dorsal stripe, outlined Crescent Charm, clearer Prismatic Pearl flecks, chunkier Luau Lei, a proper Junimo Buddy, calmer Blue Ribbon and Crown while eating.
-Saved choices keep working (ids unchanged).
+1.4.1
+- First Nexus release (includes everything from 1.4.0 below).
+- Chosen coats always win over seasonal horse packs: a coat you pick in Horse Tack & Styling (and its tack) never depends on the game's horse texture, so Content Patcher packs that change the horse by season or condition (e.g. Bog's Witchy Farm Buildings), "patch reload" and SMAPI's texture reloads can't replace it. Horses on Keep current still follow those packs, with their tack redrawn on the new look.
+- Every horse is re-applied right after the game's horse texture changes, and the day-start update now runs after Content Patcher's.
+- Fixed: after a horse texture change, a horse nobody was looking at (for example on the farm while you were indoors) could be left on a released texture, which the Animals tab then tried to draw.
+- New debug console command: horsetack_textures.
+- From 1.4.0: new Forest Spirit collection (8 original pieces): Spirit Coat, Heartwood and Root & Stone saddles, Moss Cloak pad, Glowing Runes and Vine bridles, Antler Crown and Wisp Halo styling. 57 original pieces in total: 16 coats, 12 saddles, 11 pads, 9 bridles, 9 styling overlays.
+- From 1.4.0: seasonal art. Optional Name.<season>.png files are picked from the in-game season (Moss Cloak and Antler Crown have spring, fall and winter trims). Same id on every computer.
+- From 1.4.0: saddle pads now draw under saddles (this also fixes Elle's pads painting over HorseTack saddles).
+- From 1.4.0: art pass. Fringe on all pads, Familiar easier to see on dark coats and from behind, real mushrooms on Moss & Mushroom, stronger Red Dun dorsal stripe, outlined Crescent Charm, clearer Prismatic Pearl flecks, chunkier Luau Lei, a proper Junimo Buddy, calmer Blue Ribbon and Crown while eating.
+- Saved choices keep working (ids unchanged).
