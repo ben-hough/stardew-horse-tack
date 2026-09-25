@@ -25,6 +25,10 @@ namespace MrGlim.HorseTack.Framework
         public const int SheetWidth = 224;
         public const int SheetHeight = 128;
 
+        /// <summary>Season names accepted in "Name.season.png" file names (the game's season keys).</summary>
+        public static readonly string[] Seasons = { "spring", "summer", "fall", "winter" };
+        private static readonly Regex SeasonSuffix = new(@"^(.+)\.(spring|summer|fall|winter)$", RegexOptions.IgnoreCase);
+
         private static readonly string[] EllePlainColours = { "Red", "Orange", "Yellow", "Green", "Teal", "Turquoise", "Blue", "Purple", "Pink" };
         private static readonly string[] ElleFamilies = { "Appaloosa", "Pinto", "Solid", "Speckled", "Roan", "Void" };
 
@@ -36,6 +40,9 @@ namespace MrGlim.HorseTack.Framework
         private readonly Dictionary<string, Texture2D?> Textures = new(StringComparer.OrdinalIgnoreCase);
         private IContentPack? ElleBridge;
         private string? ElleBridgeDir;
+
+        /// <summary>Current season key ("spring", "summer", "fall", "winter") used to pick per-season files. Every player's game follows the host's date, so all computers pick the same season.</summary>
+        public Func<string> SeasonProvider { get; set; } = GameSeason;
 
         /// <summary>The mod's assets folder (Mods/HorseTack/assets).</summary>
         public string AssetsDirectory => FindChildDirectory(this.Helper.DirectoryPath, "assets") ?? Path.Combine(this.Helper.DirectoryPath, "assets");
@@ -134,13 +141,14 @@ namespace MrGlim.HorseTack.Framework
                 return null;
             }
 
-            bool useVariant = shape == BodyShape.Elle && option.ElleVariantRelativePath != null;
-            string cacheKey = option.Id + (useVariant ? "|elle" : "");
+            bool elleFit = shape == BodyShape.Elle && option.Layer != TackLayer.Coat;
+            string relative = option.ResolvePath(elleFit, option.IsSeasonal ? this.CurrentSeason() : null);
+            string cacheKey = relative == option.RelativePath ? option.Id : option.Id + "|" + relative;
             if (this.Pixels.TryGetValue(cacheKey, out PixelData? cached))
                 return cached;
 
             PixelData? result = null;
-            Texture2D? tex = useVariant ? this.LoadTexture(option, option.ElleVariantRelativePath!, cacheKey) : this.GetTexture(option);
+            Texture2D? tex = relative == option.RelativePath ? this.GetTexture(option) : this.LoadTexture(option, relative, cacheKey);
             if (tex != null)
             {
                 var data = new Color[tex.Width * tex.Height];
@@ -155,6 +163,42 @@ namespace MrGlim.HorseTack.Framework
         public Texture2D? GetTexture(string id) => this.ById.TryGetValue(id, out TackOption? o) ? this.GetTexture(o) : null;
 
         private Texture2D? GetTexture(TackOption option) => this.LoadTexture(option, option.RelativePath, option.Id);
+
+        /// <summary>A cache-key suffix naming the season if any chosen layer has per-season files (empty otherwise), so composites are rebuilt when the season changes.</summary>
+        public string SeasonKey(TackSelection sel)
+        {
+            foreach (TackLayer layer in TackLayers.DrawOrder)
+            {
+                string id = sel.Get(layer);
+                if (id != "" && this.ById.TryGetValue(id, out TackOption? o) && o.IsSeasonal)
+                    return "@" + this.CurrentSeason();
+            }
+            return "";
+        }
+
+        /// <summary>Overlay layers in draw order: style, pad, saddle, bridle. Pads go under saddles (like real tack), so a pad never paints over a saddle from another set:
+        /// Elle's pads are full blankets with a hole shaped for her saddle, and HorseTack's pads leave HorseTack's saddle footprint free. Within one set nothing changes, because a set's pad and saddle don't overlap.</summary>
+        public IReadOnlyList<TackLayer> OverlayOrder(TackSelection sel) => OverlayDrawOrder;
+
+        private static readonly TackLayer[] OverlayDrawOrder = { TackLayer.Style, TackLayer.Pad, TackLayer.Saddle, TackLayer.Bridle };
+
+        /// <summary>The current season key, normalised; "summer" if it can't be read.</summary>
+        public string CurrentSeason()
+        {
+            string season;
+            try
+            {
+                season = this.SeasonProvider()?.Trim().ToLowerInvariant() ?? "";
+            }
+            catch
+            {
+                season = "";
+            }
+            return Seasons.Contains(season) ? season : "summer";
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static string GameSeason() => StardewValley.Game1.currentSeason ?? "summer";
 
         private Texture2D? LoadTexture(TackOption option, string relativePath, string cacheKey)
         {
@@ -186,6 +230,7 @@ namespace MrGlim.HorseTack.Framework
 
             CollectionCatalog catalog = CollectionCatalog.Load(assets);
             var variants = new List<(TackLayer Layer, string Stem, string Relative)>();
+            var seasonal = new List<(TackLayer Layer, string Stem, string Key, string Relative)>();
 
             foreach (string dir in SafeDirectories(assets))
             {
@@ -199,7 +244,17 @@ namespace MrGlim.HorseTack.Framework
                     if (!this.ValidateSheet(file, relative, source, stats, out byte[] bytes))
                         continue;
 
-                    if (stem.EndsWith(ElleVariantSuffix, StringComparison.OrdinalIgnoreCase))
+                    bool isElleFit = stem.EndsWith(ElleVariantSuffix, StringComparison.OrdinalIgnoreCase);
+                    Match seasonMatch = SeasonSuffix.Match(isElleFit ? stem[..^ElleVariantSuffix.Length] : stem);
+                    if (seasonMatch.Success)
+                    {
+                        string baseStem = seasonMatch.Groups[1].Value;
+                        string seasonKey = seasonMatch.Groups[2].Value.ToLowerInvariant() + (isElleFit ? ElleVariantSuffix : "");
+                        seasonal.Add((RouteLayer(folderLayer, baseStem), baseStem, seasonKey, relative));
+                        continue;
+                    }
+
+                    if (isElleFit)
                     {
                         string baseStem = stem[..^ElleVariantSuffix.Length];
                         variants.Add((RouteLayer(folderLayer, baseStem), baseStem, relative));
@@ -239,6 +294,15 @@ namespace MrGlim.HorseTack.Framework
                     option.ElleVariantRelativePath ??= variant.Relative;
                 else
                     Log.Trace($"Ignored '{variant.Relative}': no matching '{variant.Stem}.png' overlay next to it.");
+            }
+
+            foreach (var season in seasonal)
+            {
+                string id = $"{TackLayers.FolderName(season.Layer)}/{CanonicalKey(season.Layer, season.Stem)}";
+                if (this.ById.TryGetValue(id, out TackOption? option) && option.Source == source && !(season.Layer == TackLayer.Coat && season.Key.EndsWith(ElleVariantSuffix, StringComparison.OrdinalIgnoreCase)))
+                    option.SeasonalPaths.TryAdd(season.Key, season.Relative);
+                else
+                    Log.Trace($"Ignored '{season.Relative}': no matching '{season.Stem}.png' next to it (per-season files need the plain file as the fallback).");
             }
         }
 

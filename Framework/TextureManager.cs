@@ -52,7 +52,7 @@ namespace MrGlim.HorseTack.Framework
             }
 
             string baseName = BaseTextureName(sprite);
-            string key = baseName + "#" + sel.Key;
+            string key = baseName + "#" + sel.Key + this.Registry.SeasonKey(sel);
 
             // fast path: already applied and nothing changed
             if (this.AppliedSprites.TryGetValue(sprite, out Applied? state) && state.Key == key && state.Generation == this.Generation && state.Texture != null)
@@ -119,7 +119,7 @@ namespace MrGlim.HorseTack.Framework
             if (sel.IsEmpty)
                 return LoadGameTexture(baseName);
 
-            string key = $"{this.Generation}:{baseName}#{sel.Key}";
+            string key = $"{this.Generation}:{baseName}#{sel.Key}{this.Registry.SeasonKey(sel)}";
             for (var node = this.PreviewCache.First; node != null; node = node.Next)
             {
                 if (node.Value.Key == key)
@@ -170,10 +170,8 @@ namespace MrGlim.HorseTack.Framework
                 return null;
 
             Color[] result = (Color[])basePx.Data.Clone();
-            foreach (TackLayer layer in TackLayers.DrawOrder)
+            foreach (TackLayer layer in this.Registry.OverlayOrder(sel))
             {
-                if (layer == TackLayer.Coat)
-                    continue;
                 string id = sel.Get(layer);
                 if (id == "")
                     continue;
@@ -194,7 +192,7 @@ namespace MrGlim.HorseTack.Framework
 
             var tex = new Texture2D(Game1.graphics.GraphicsDevice, basePx.Width, basePx.Height);
             tex.SetData(result);
-            tex.Name = "MrGlim.HorseTack/" + sel.Key;
+            tex.Name = "MrGlim.HorseTack/" + sel.Key + this.Registry.SeasonKey(sel);
             Log.Trace($"Composed {sel.Key} on {baseName} for {forWhat}.");
             return tex;
         }

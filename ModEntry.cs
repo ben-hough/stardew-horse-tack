@@ -33,6 +33,7 @@ namespace MrGlim.HorseTack
 
         private ModConfig Config = new();
         private AssetRegistry Registry = null!;
+        private string? LastSeason;
         private TextureManager Textures = null!;
         private TackService Service = null!;
 
@@ -54,7 +55,7 @@ namespace MrGlim.HorseTack
 
             helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
-            helper.Events.GameLoop.DayStarted += (_, _) => this.PublishHostRules();
+            helper.Events.GameLoop.DayStarted += this.OnDayStarted;
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.GameLoop.ReturnedToTitle += (_, _) => this.Textures.InvalidateAll();
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
@@ -108,6 +109,20 @@ namespace MrGlim.HorseTack
         {
             this.Textures.InvalidateAll();
             this.PublishHostRules();
+        }
+
+        private void OnDayStarted(object? sender, DayStartedEventArgs e)
+        {
+            this.PublishHostRules();
+
+            // per-season art: composites are keyed by season already; drop the old season's textures when it changes
+            string season = this.Registry.CurrentSeason();
+            if (this.LastSeason != null && this.LastSeason != season)
+            {
+                Log.Trace($"Season changed to {season}; rebuilding horse textures with seasonal art.");
+                this.Textures.InvalidateAll();
+            }
+            this.LastSeason = season;
         }
 
         /// <summary>On the host, publish the restyle permission on the host's own farmer so farmhands' wizards list the same horses the host will accept.</summary>

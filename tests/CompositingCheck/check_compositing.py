@@ -2,7 +2,7 @@
 """Unit check for Framework/Compositor.cs against Pillow's alpha_composite.
 
 usage: python check_compositing.py [base.png|-] [overlay.png ...] [--out out_dir]
-Composes a base sheet plus overlays in the mod's order (coat, style, saddle, pad, bridle)
+Composes a base sheet plus overlays in the mod's order (coat, style, pad, saddle, bridle)
 with the C# code and compares with Pillow. Without arguments it uses generated 224x128 test
 sheets (an opaque base, hard-edged tack-like overlays and random semi-transparent overlays),
 so no art files are needed. Pass e.g. the vanilla horse sheet and your own assets PNGs to

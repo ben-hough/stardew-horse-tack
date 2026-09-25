@@ -4,7 +4,7 @@ import os
 import sys
 from PIL import Image, ImageDraw
 
-ORDER = ['coats', 'styles', 'saddles', 'pads', 'bridles']  # file layer folders in draw order (coat, style, saddle, pad, bridle)
+ORDER = ['coats', 'styles', 'pads', 'saddles', 'bridles']  # file layer folders in draw order (coat, style, pad, saddle, bridle; pads go under saddles since 1.4.0)
 
 
 def composite(base, layers):

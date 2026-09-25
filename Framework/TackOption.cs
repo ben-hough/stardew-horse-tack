@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using StardewModdingAPI;
 
 namespace MrGlim.HorseTack.Framework
@@ -28,5 +30,23 @@ namespace MrGlim.HorseTack.Framework
         public string RelativePath { get; init; } = "";
         /// <summary>SHA-1 of the file bytes (used to skip duplicate copies).</summary>
         public string Hash { get; init; } = "";
+        /// <summary>Optional per-season files ("Name.fall.png" -> key "fall", "Name.fall@elle.png" -> key "fall@elle"), paths relative to the mod folder.</summary>
+        public Dictionary<string, string> SeasonalPaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>Whether this option has any per-season files.</summary>
+        public bool IsSeasonal => this.SeasonalPaths.Count > 0;
+
+        /// <summary>The file to draw for a body fit and season. The body fit wins over the season: an Elle-shaped body uses the "@elle" seasonal file, else the "@elle" fit, and only falls back to the vanilla-fit seasonal file if there's no "@elle" fit at all.</summary>
+        public string ResolvePath(bool elleFit, string? season)
+        {
+            if (season != null && this.SeasonalPaths.Count > 0)
+            {
+                if (elleFit && this.SeasonalPaths.TryGetValue(season + AssetRegistry.ElleVariantSuffix, out string? elleSeasonal))
+                    return elleSeasonal;
+                if ((!elleFit || this.ElleVariantRelativePath == null) && this.SeasonalPaths.TryGetValue(season, out string? seasonal))
+                    return seasonal;
+            }
+            return elleFit && this.ElleVariantRelativePath != null ? this.ElleVariantRelativePath : this.RelativePath;
+        }
     }
 }

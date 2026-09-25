@@ -1,4 +1,4 @@
-Horse Tack & Styling 1.3.0 (test build) by MrGlim
+Horse Tack & Styling 1.4.0 (test build) by MrGlim
 
 INSTALL
 1. Needs Stardew Valley 1.6 and SMAPI 4.x. Generic Mod Config Menu is optional.
@@ -16,7 +16,8 @@ INSTALL
 ART
 HorseTack ships its own festival/Stardew-themed coats, saddles, pads, bridles and
 styling (Spirit's Eve pumpkin saddle, Winter Star holly, Lucky Purple Shorts pad, ...),
-breed-inspired coats and a Witchy set (broomstick saddle, witch hat, potion vials, ...).
+breed-inspired coats, a Witchy set (broomstick saddle, witch hat, potion vials, ...) and a
+Forest Spirit set whose Moss Cloak and Antler Crown change with the season.
 In multiplayer, use matching art: same HorseTack version, and Elle's Cuter Horses on
 everyone's computer if anyone picks Elle's art. If you're missing a piece someone else
 picked, you just see that layer skipped / the normal coat on your screen - no error.

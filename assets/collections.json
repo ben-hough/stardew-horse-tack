@@ -23,7 +23,8 @@
     "Breeds": "Breeds",
     "Ranch": "Ranch",
     "Winter": "Winter",
-    "Witchy": "Witchy"
+    "Witchy": "Witchy",
+    "ForestSpirit": "Forest Spirit"
   },
   // Optional display-name overrides, keyed by the file name without the Saddle_/Pad_/Bridle_ prefix or .png.
   "Names": {
@@ -37,6 +38,8 @@
     "Galaxy_Stardust": "Stardust",
     "MrQi_Casino": "Casino",
     "Witchy_MossMushroom": "Moss & Mushroom",
-    "Witchy_Hat": "Witch Hat"
+    "Witchy_Hat": "Witch Hat",
+    "ForestSpirit_RootStone": "Root & Stone",
+    "ForestSpirit_Spirit": "Spirit Coat"
   }
 }

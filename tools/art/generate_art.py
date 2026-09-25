@@ -5,6 +5,7 @@ usage: python generate_art.py <vanilla_horse.png> [--alt <other_horse.png>] [--o
 
 - <vanilla_horse.png>: Content/Animals/horse unpacked from your own game (not included in the repo).
   Coats are recolours of this ConcernedApe sheet with the built-in saddle painted out.
+- --saddle-mask is no longer needed for HorseTack's own pads (1.4.0 draws pads under saddles).
 - --alt: optional second horse shape (e.g. a coat from Elle's Cuter Horses). Only its silhouette
   and frame offsets are read, to write "<name>@elle.png" fit variants of the overlays; none of its
   pixels are copied.
@@ -191,8 +192,11 @@ PAD = {
         OLMO.......OMLO
         OLMO.......OMLO
         OLMO.......OMLO
-        ODDO.......ODDO
-        .OO.........OO.
+        OMMMO.....OMMMO
+        OMMMO.....OMMMO
+        OMMMO.....OMMMO
+        ODDDO.....ODDDO
+        .OOO.......OOO.
     ''')),
     'up': ((10, 12), tpl('''
         ..OOOOOOOOO..
@@ -228,35 +232,52 @@ CROWN = {
     'up': [(14, 5, 'A'), (15, 5, 'G'), (16, 5, 'B'), (17, 5, 'G'), (18, 5, 'C'), (16, 4, 'A')],
 }
 
+# 1.4.0: chunky plus-shaped flowers (yellow centre) with leaves, instead of thin dots
+def _flowers(centres, leaves):
+    pts = []
+    for x, y, c in centres:
+        pts += [(x, y, 'B'), (x - 1, y, c), (x + 1, y, c), (x, y - 1, c), (x, y + 1, c)]
+    return pts + [(x, y, 'G') for x, y in leaves]
+
+
 LEI = {
-    'side': [(20, 11, 'A'), (21, 12, 'B'), (22, 13, 'C'), (22, 14, 'A'), (23, 15, 'B'), (24, 16, 'C'), (24, 17, 'A'), (25, 18, 'B'),
-             (21, 11, 'G'), (22, 12, 'G'), (23, 14, 'G'), (24, 15, 'G'), (25, 17, 'G')],
-    'down': [(11, 20, 'A'), (12, 21, 'B'), (11, 21, 'G'), (21, 20, 'A'), (20, 21, 'B'), (21, 21, 'G'),
-             (12, 22, 'C'), (20, 22, 'C')],
-    'up': [(12, 9, 'A'), (13, 10, 'B'), (14, 10, 'C'), (15, 10, 'A'), (16, 10, 'B'), (17, 10, 'C'), (18, 10, 'A'), (19, 10, 'B'), (20, 9, 'C'),
-           (13, 9, 'G'), (19, 9, 'G')],
+    'side': _flowers([(20, 11, 'A'), (22, 14, 'C'), (24, 17, 'A')], [(21, 13), (23, 16), (19, 12), (25, 19)]),
+    'down': _flowers([(11, 21, 'A'), (21, 21, 'C'), (12, 24, 'C'), (20, 24, 'A')], [(10, 23), (22, 23), (13, 26), (19, 26)]),
+    'up': _flowers([(13, 9, 'A'), (16, 10, 'C'), (19, 9, 'A')], [(14, 11), (18, 11), (11, 9), (21, 9)]),
 }
 LEI_HEAD_VIEW = {'side': 'side', 'down': 'down', 'up': None}  # lei follows the head on side/down, body on up
 
+# 1.4.0: clearly a Junimo: star leaf on a stalk, round body, dot eyes, stubby arms, little feet
 JUNIMO = tpl('''
-    ...O...
-    ..OOO..
-    .OLLMO.
-    OMEMEMO
-    OMMMMMO
-    .OMMMO.
-    ..O.O..
+    ....G....
+    ...GHG...
+    ....G....
+    ....O....
+    ..OOOOO..
+    .OLLLMMO.
+    OMMEMEMMO
+    OMMMMMMMO
+    AOMMMMMOA
+    .OMMMMMO.
+    ..OO.OO..
 ''')
 JUNIMO_BACK = tpl('''
-    ...O...
-    ..OOO..
-    .OLLMO.
-    OMLMMMO
-    OMMMMMO
-    .OMMMO.
-    ..O.O..
+    ....G....
+    ...GHG...
+    ....G....
+    ....O....
+    ..OOOOO..
+    .OLLLMMO.
+    OMLMMMMMO
+    OMMMMMMMO
+    AOMMMMMOA
+    .OMMMMMO.
+    ..OO.OO..
 ''')
-JUNIMO_POS = {'side': (5, 7), 'down': (13, 3), 'up': (13, 16)}
+# side: on the rump behind the saddle; down: peeking over the back; up (rear): perched on the saddle's
+# right-hand side above the flap, so the saddle (drawn above styles) doesn't hide it
+JUNIMO_POS = {'side': (4, 3), 'down': (12, -1), 'up': (19, 1)}
+
 
 WING_SIDE = tpl('''
     O.......
@@ -312,15 +333,44 @@ def saddle_footprint(anchors):
     return fp
 
 
-def draw_pad(anchors, pal, pattern=None):
+def draw_pad(anchors, pal, pattern=None, templates=None, fringe=True, fringe_fn=None):
     L = Layer()
+    templates = templates or PAD
     for f, view, dx, dy in body_views(anchors):
-        (ox, oy), rows = PAD[view]
+        (ox, oy), rows = templates[view]
         stamp(L, f, rows, ox + dx, oy + dy, pal, pattern)
     clip_to_body(L, anchors.sheet, pal['O'])
     fp = saddle_footprint(anchors)
     L.a[fp] = 0
+    if fringe:
+        add_fringe(L, anchors, pal, templates, fp, fringe_fn)
     return L
+
+
+def add_fringe(L, anchors, pal, templates, fp, fringe_fn=None):
+    """1.4.0: a short fringe hanging below the pad's lowest edge in every view, so pads read from the
+    side and from the front (below the belly line / at the shoulders), not just as a thin edge."""
+    strand = pal.get('F', pal['D'])
+    tip = pal['O']
+    for f, view, dx, dy in body_views(anchors):
+        (ox, oy), rows = templates[view]
+        fx, fy = origin(f)
+        x0, x1 = ox + dx, ox + dx + len(rows[0])
+        for x in range(max(0, x0), min(FRAME, x1)):
+            ys = [y for y in range(FRAME) if L.has(f, x, y)]
+            if not ys:
+                continue
+            yb = max(ys)
+            k = x - x0
+            n = fringe_fn(f, view, k, x, yb) if fringe_fn else (2 if k % 2 == 0 else 1)
+            for t in range(n):
+                y = yb + 1 + t
+                if y >= FRAME or fp[fy + y, fx + x] or L.has(f, x, y):
+                    break
+                c = tip if t == n - 1 else strand
+                if isinstance(c, str):
+                    c = pal[c]
+                L.put(f, x, y, c, 'F')
 
 
 def head_items(anchors, f):
@@ -399,8 +449,8 @@ PALS = {
     'NightMarket_Pearl': pal(O='3a3050', D='b9b0d8', M='f4f0ff', A='d8c8ff', B='ffffff', C='7fd6d0', R='8c80b0'),
     # styles
     'FlowerDance_Crown': pal(A='ff7eb6', B='fff27a', C='b69cff', G='3f9a3a'),
-    'Luau_Lei': pal(A='ff4f7b', B='ffd84d', C='ff9a3c', G='3fa34d'),
-    'Junimo_Buddy': pal(O='1d4a12', L='a8e86a', M='6fbf3b', E='1a1a1a'),
+    'Luau_Lei': pal(A='ff4f7b', B='ffe14d', C='ff8a2c', G='2f8a3d'),
+    'Junimo_Buddy': pal(O='1d4a12', L='a8e86a', M='6fbf3b', E='1a1a1a', G='3f9a2a', H='d8f070', A='4f9a2a'),
     'SpiritsEve_BatWings': pal(O='140a1c', M='3b2350', D='2a1838'),
     'WinterStar_SnowDusting': pal(W='ffffff', L='dff1ff'),
 }
@@ -530,8 +580,9 @@ def rosette(L, f, view, hx, hy, icon):
         for dx, dy in ((0, -1), (-1, 0), (1, 0), (0, 1)):
             L.put(f, cx + dx, cy + dy, p['M'])
         L.put(f, cx, cy, p['A'])
-        L.put(f, cx - 1, cy + 2, p['C'])
-        L.put(f, cx + 1, cy + 2, p['C'])
+        if f not in EATING_FRAMES:  # 1.4.0: no ribbon tails while eating (too busy with a crown)
+            L.put(f, cx - 1, cy + 2, p['C'])
+            L.put(f, cx + 1, cy + 2, p['C'])
     elif view == 'down':
         for cx in (13 + hx, 19 + hx):
             cy = 21 + hy
@@ -571,11 +622,16 @@ def pearls(L, f, view, hx, hy, icon):
 # ---------------------------------------------------------------------------------------------
 # Styles
 # ---------------------------------------------------------------------------------------------
+EATING_FRAMES = (21, 22, 23, 24)
+CROWN_EATING = [(24, 7, 'A'), (25, 7, 'G'), (26, 7, 'B'), (27, 7, 'G'), (25, 6, 'C')]  # 1.4.0: smaller while eating
+
+
 def draw_crown(anchors, p):
     L = Layer()
     for f in range(28):
         for view, hx, hy in head_items(anchors, f):
-            for x, y, s in CROWN.get(view, []):
+            table = CROWN_EATING if (f in EATING_FRAMES and view == 'side') else CROWN.get(view, [])
+            for x, y, s in table:
                 L.put(f, x + hx, y + hy, p[s], s)
         if VIEW_OF.get(f) == 'up':
             hx, hy = up_head_anchor(anchors, f)
@@ -865,7 +921,7 @@ BREED_COATS = {
     'Breeds_RedDun': dict(
         outline='4a2410', body=shade_set('f4d2a6', 'e8b882', 'd9a06a', 'c48652', 'a86c3e'),
         legs=shade_set('d49a6a', 'c07e50', 'a86a40', '905634', '744428'),
-        mane=('8a3a1c', 'b0582e'), dorsal='6e2a12', bars='8a3e1c'),
+        mane=('8a3a1c', 'b0582e'), dorsal='5a1e0a', dorsal_wide=True, bars='6a2a10', bars_mix=0.85),
     'Breeds_Grulla': dict(
         outline='1e1a18', body=shade_set('b8ada0', 'a09486', '8a7e72', '74685e', '5e544c'),
         legs=shade_set('4a4440', '3a3532', '2e2a28', '26221f', '1e1b19'),
@@ -895,7 +951,7 @@ BREED_COATS = {
     'Prismatic_Pearl': dict(
         outline='6a6480', body=shade_set('ffffff', 'fbf9ff', 'eeeaf6', 'dcd6ea', 'c6bedc'),
         legs=shade_set('fbf9ff', 'eeeaf6', 'dcd6ea', 'c6bedc', 'b0a8c8'),
-        mane='opal', shimmer=0.45),
+        mane='opal', shimmer=0.45, opal=True),
 }
 
 
@@ -963,11 +1019,16 @@ def breed_marks(spec, key, col, c, f, x, y, view, part, rx, ry, hd, front, sym, 
     if spec.get('dorsal') and part == 'body':
         if view == 'side' and 8 <= rx <= 21 and sym[fy + y - 1, fx + x] == '#' and ry <= 16:
             return hexc(spec['dorsal'])
+        # 1.4.0 (red dun): a two-pixel stripe, the second row blended
+        if spec.get('dorsal_wide') and view == 'side' and 8 <= rx <= 21 and ry <= 17 and y >= 2 and sym[fy + y - 2, fx + x] == '#':
+            return mix(col, hexc(spec['dorsal']), 0.55)
         if view == 'up' and rx == 16 and 11 <= ry <= 17:
             return hexc(spec['dorsal'])
+        if spec.get('dorsal_wide') and view == 'up' and rx in (15, 17) and 11 <= ry <= 17:
+            return mix(col, hexc(spec['dorsal']), 0.5)
     # primitive leg bars (duns)
     if spec.get('bars') and part in ('leg', 'lowleg') and ry in (23, 25):
-        return mix(col, hexc(spec['bars']), 0.7)
+        return mix(col, hexc(spec['bars']), spec.get('bars_mix', 0.7))
     # dapples: soft light rings on the barrel and hindquarters
     if spec.get('dapple') and part == 'body' and c in 'msd':
         cx, cy = (rx + (ry // 3) % 2 * 2) % 4, ry % 3
@@ -1000,8 +1061,14 @@ def breed_marks(spec, key, col, c, f, x, y, view, part, rx, ry, hd, front, sym, 
             return hexc(spec['muzzle'])
         if hv == 'down' and 25 <= hy <= 27 and 14 <= hx <= 18 and r < 0.7:
             return hexc(spec['muzzle'])
+    # 1.4.0 (forest spirit): faint glowing freckles
+    if spec.get('glow') and part in ('body', 'head') and c in 'ms' and r < 0.035:
+        return mix(col, hexc(spec['glow']), 0.75)
     if spec.get('sheen') and c in 'ml' and part != 'head' and (rx - ry) % 6 == 0:
         return spec['body']['h']
+    # 1.4.0 (pearl): sparse but clear opal flecks on the body on a regular diagonal lattice (not random noise)
+    if spec.get('opal') and part in ('body', 'leg') and c in 'ms' and (x * 2 + y * 3) % 7 == 0:
+        return mix(col, hexc(('7fd0cc', 'a890e4', 'e898bc')[(x + y) % 3]), 0.55)
     # prismatic shimmer on highlights
     if 'shimmer' in spec and c in 'hl':
         k = (x + y + f) // 2
@@ -1064,12 +1131,12 @@ PALS.update({
     'Witchy_Broomstick': pal(O='2a1a0e', D='4a2e16', M='6b4423', L='8a5a30', H='d0aa55', A='d0aa55', B='5b2e8a', S='a8843a',
                              Y='f0d27a', y='c9a24a', T='8a6a2a', b='5b2e8a'),
     'Witchy_Grimoire': pal(O='1e1030', D='3a1f5c', M='5b2e8a', L='efe4c8', H='d0aa55', A='d0aa55', B='c8322a', S='a8843a'),
-    'Witchy_MossMushroom': pal(O='2a3a14', D='4f6b2a', M='6f8f3a', L='93b45a', A='d8362c', B='f4ecd8', C='465f22'),
+    'Witchy_MossMushroom': pal(O='2a3a14', D='4f6b2a', M='6f8f3a', L='93b45a', A='d8362c', B='f4ecd8', C='465f22', W='ffffff', R='7a1a14', F='5f7f32'),
     'Witchy_StarryHex': pal(O='140a24', D='2a1646', M='3f2266', L='b8bfd0', A='f4f6fb', B='d6dbe6', C='8a58c4'),
     'Witchy_PotionVials': pal(O='1e1208', M='3a2418', A='d0aa55', R='3a2418', G='6fe05a', P='f06ac0', U='5ac0f0', K='8a5a30', W='ffffff'),
     'Witchy_CrescentCharm': pal(O='140a24', M='4a2a78', A='c9cfdc', R='4a2a78', S='f4f6fb'),
     'Witchy_Hat': pal(O='160c26', M='3f2266', L='6a3fa0', A='5f7f32', B='d8b25a'),
-    'Witchy_Familiar': pal(K='1a1420', V='7a58b0', Y='f2d23c'),
+    'Witchy_Familiar': pal(K='1a1420', V='7a58b0', Y='f2d23c', R='a898d0'),
 })
 
 BRISTLES = {
@@ -1125,17 +1192,25 @@ def grimoire(f, x, y, ch, i, j):
     return ch
 
 
-MUSHROOMS = {
-    'side': {(2, 6): 'A', (3, 6): 'A', (2, 7): 'B', (10, 5): 'A', (11, 5): 'A', (11, 6): 'B', (6, 7): 'A', (6, 8): 'B'},
-    'down': {(2, 5): 'A', (2, 6): 'B', (12, 8): 'A', (12, 9): 'B', (1, 9): 'A', (13, 4): 'A'},
-    'up': {(3, 2): 'A', (4, 2): 'A', (4, 3): 'B', (9, 4): 'A', (10, 4): 'A', (9, 5): 'B', (6, 6): 'A'},
+MUSHROOM = tpl("""
+    .AA.
+    AWAA
+    RRRR
+    .BB.
+""")
+MUSHROOM_SMALL = tpl("""
+    AW
+    BB
+""")
+# where to put mushrooms, body space per view: (x, y, big?)
+MUSHROOM_SPOTS = {
+    'side': [(9, 18, True), (18, 19, True), (13, 21, False)],
+    'down': [(9, 20, True), (20, 20, True)],
+    'up': [(10, 20, False), (21, 20, False)],
 }
 
 
 def moss_mushroom(f, x, y, ch, i, j):
-    v = VIEW_OF.get(f)
-    if (i, j) in MUSHROOMS.get(v, {}) and ch in 'MLD':
-        return MUSHROOMS[v][(i, j)]
     if ch == 'M':
         r = rnd('moss', f // 7, i, j)
         if r < 0.22:
@@ -1143,6 +1218,25 @@ def moss_mushroom(f, x, y, ch, i, j):
         if r < 0.36:
             return 'L'
     return ch
+
+
+def add_mushrooms(L, anchors, p):
+    """1.4.0: little red-cap mushrooms (white spot, dark gills, cream stem) sitting on the pad."""
+    fp = saddle_footprint(anchors)
+    for f, view, dx, dy in body_views(anchors):
+        fx, fy = origin(f)
+        for x, y, big in MUSHROOM_SPOTS[view]:
+            rows = MUSHROOM if big else MUSHROOM_SMALL
+            # only where the pad shows (at least one pad pixel under the stem)
+            base_y = y + dy + len(rows) - 1
+            if not any(L.has(f, x + dx + i, base_y) or L.has(f, x + dx + i, base_y + 1) for i in range(len(rows[0]))):
+                continue
+            for j, row in enumerate(rows):
+                for i, c in enumerate(row):
+                    px, py = x + dx + i, y + dy + j
+                    if c != '.' and 0 <= px < FRAME and 0 <= py < FRAME and not fp[fy + py, fx + px]:
+                        L.put(f, px, py, p[c], c)
+    return L
 
 
 def starry_hex(f, x, y, ch, i, j):
@@ -1171,27 +1265,36 @@ def potion_vials(L, f, view, hx, hy, icon):
 
 
 CRESCENT = {
+    # 1.4.0: fully outlined (dark) so it holds up on white/sabino coats; also drawn on the head icons
     'side': ((21, 15), tpl("""
-        .O.
-        .O.
-        OSO
-        OSAO
+        .O..
+        .OO.
+        OSSO
         OSO.
+        OSAO
         .OO.
     """)),
-    'down': ((14, 20), tpl("""
-        S...S
+    'down': ((14, 19), tpl("""
+        .O.O.
+        OSOSO
         OSASO
         .OOO.
     """)),
 }
+CRESCENT_ICON = ((26, 17), tpl("""
+        .O..
+        OSSO
+        OSO.
+        OSAO
+        .OO.
+"""))
 
 
 def crescent_charm(L, f, view, hx, hy, icon):
     p = PALS['Witchy_CrescentCharm']
-    if view not in CRESCENT or (icon and view == 'side'):
-        return  # the throat pendant would float off the small head icons
-    (ox, oy), rows = CRESCENT[view]
+    if view not in CRESCENT:
+        return
+    (ox, oy), rows = CRESCENT_ICON if (icon and view == 'side') else CRESCENT[view]
     for j, row in enumerate(rows):
         for i, c in enumerate(row):
             if c != '.':
@@ -1258,28 +1361,40 @@ FAMILIAR = {
         K.KKKK
         KK.KK.
     """)),
-    'up': ((14, 18), tpl("""
+    # 1.4.0: rear view: perched high on the saddle's right side, looking back (eyes), so the saddle and the
+    # Broomstick bristles (drawn above styles) no longer hide it
+    'up': ((19, 5), tpl("""
         K...K
         KKKKK
-        VKKKV
+        KYKYK
         .KKK.
         KKKKK
-        .KKKKK
+        KKKKK.
+        .K.KKK
     """)),
-    'down': ((15, 8), tpl("""
-        K.K
-        KKK
-        YKY
+    # front view: ears and glowing eyes peeking over the horse's back
+    'down': ((14, 5), tpl("""
+        K...K
+        KKKKK
+        KYKYK
+        .KKK.
     """)),
 }
 
 
 def draw_familiar(anchors):
+    """1.4.0: a pale violet rim around the cat keeps it readable on dark coats; eyes glow gold."""
     p = PALS['Witchy_Familiar']
     L = Layer()
     for f, view, dx, dy in body_views(anchors):
         (ox, oy), rows = FAMILIAR[view]
         stamp(L, f, rows, ox + dx, oy + dy, p)
+        cat = [(ox + dx + i, oy + dy + j) for j, row in enumerate(rows) for i, ch in enumerate(row) if ch not in '. ']
+        cs = set(cat)
+        for x, y in cat:
+            for nx, ny in ((x + 1, y), (x - 1, y), (x, y - 1), (x, y + 1)):
+                if (nx, ny) not in cs and not L.has(f, nx, ny):
+                    L.put(f, nx, ny, p['R'], 'R')
     return L
 
 
@@ -1287,6 +1402,294 @@ BREED_COATS['Witchy_MidnightFamiliar'] = dict(
     outline='0c0814', body=shade_set('56407e', '3e2c5e', '2c2040', '231a34', '1a1328'),
     legs=shade_set('4a3470', '2c2040', '231a34', '1c1529', '15101f'),
     mane=('1a1226', '4a2e78'), mane_streak='7a4ab8', streak_rate=0.12, sheen=True)
+
+
+
+# ---------------------------------------------------------------------------------------------
+# Forest Spirit collection (1.4.0): generic woodland motifs in our own style (bark, moss, ferns,
+# fireflies, small deer-antler circlet). Original designs; nothing taken from any mod.
+# Seasonal trims: "<name>.<season>.png" files; the plain file is the summer look and the fallback.
+# ---------------------------------------------------------------------------------------------
+FS_SEASONS = ('spring', 'fall', 'winter')  # summer = the plain file
+FS_TRIM = {
+    'summer': dict(T1='5fa83a', T2='9ad05a', T3='f2d86a'),   # green leaves, tiny yellow flowers
+    'spring': dict(T1='f4a8c8', T2='ffffff', T3='f2d86a'),   # blossom pink / white
+    'fall': dict(T1='d8502a', T2='f09a3a', T3='a8321c'),     # red-orange leaves
+    'winter': dict(T1='e8f4ff', T2='a8d0f0', T3='ffffff'),   # frost
+}
+PALS.update({
+    'ForestSpirit_Heartwood': pal(O='2a1a0e', D='4a3220', M='7a5634', L='a47a4a', H='d0a86a', A='3f8a2a', B='7fc04a', S='a8906a'),
+    'ForestSpirit_RootStone': pal(O='26261e', D='5c5c52', M='84847a', L='a8a89c', H='c8c8bc', A='5a3a1e', B='5f8f3a', S='8a7a5a'),
+    'ForestSpirit_MossCloak': pal(O='24361a', D='3f5a26', M='5a7a34', L='7fa04a', H='a0c060', C='36501e', F='3f5a26'),
+    'ForestSpirit_Runes': pal(O='120e0a', M='2e2620', A='7ff0d8', B='d8fff4', R='2e2620'),
+    'ForestSpirit_Vine': pal(O='1e3a12', M='3f7a26', L='7fbf4a', W='ffffff', P='f4a0c0', Y='f2d86a', R='3f7a26'),
+    'ForestSpirit_Antlers': pal(O='4a3422', L='efe4c8', M='b8a47c', T='6a4a2e'),
+    'ForestSpirit_Wisps': pal(C='f4ffe0', G=(184, 240, 160, 120), Q=(160, 230, 240, 120), K='d8f4ff'),
+})
+for _s, _t in FS_TRIM.items():
+    PALS['ForestSpirit_Trim_' + _s] = pal(**_t)
+
+
+def heartwood_grain(f, x, y, ch, i, j):
+    """Carved heartwood: concentric growth rings on the seat, rough bark (dark flecks) on the rims."""
+    if ch == 'M':
+        ring = int(math.hypot((i - 6) * 0.8, (j - 4) * 1.4))
+        return 'L' if ring % 3 == 0 else 'M'
+    if ch == 'L':
+        return 'D' if rnd('bark', f // 7, i, j) < 0.35 else 'L'
+    return ch
+
+
+SPROUT = {'side': [(19, 10, 'A'), (19, 9, 'A'), (18, 8, 'B'), (20, 8, 'B'), (21, 7, 'B')],
+          'up': [(16, 10, 'A'), (15, 9, 'B'), (17, 9, 'B')],
+          'down': [(16, 20, 'A'), (15, 19, 'B'), (17, 19, 'B')]}
+
+
+def draw_heartwood(anchors):
+    p = PALS['ForestSpirit_Heartwood']
+    L = draw_saddle(anchors, p, heartwood_grain)
+    for f, view, dx, dy in body_views(anchors):
+        for x, y, c in SPROUT[view]:
+            L.put(f, x + dx, y + dy, p[c], c)
+    return L
+
+
+def root_stone(f, x, y, ch, i, j):
+    """Grey stone-smooth leather with brown roots winding across and a few moss tufts."""
+    if ch in 'ML':
+        if (i + int(2 * math.sin(j * 1.3 + i * 0.4))) % 5 == 0:
+            return 'A'
+        if rnd('moss-stone', f // 7, i, j) < 0.1:
+            return 'B'
+    return ch
+
+
+# Moss Cloak: a longer drape than the other pads, reaching the belly line, with moss strands and ferns
+MOSS_CLOAK = {
+    'side': ((9, 13), tpl("""
+        ..OOOOOOOOO..
+        .OLLLLLLLLLO.
+        OLMMMMMMMMMLO
+        OLMMMMMMMMMLO
+        OLMMMMMMMMMLO
+        OLMMMMMMMMMLO
+        OLMMMMMMMMMLO
+        ODMMMMMMMMMDO
+        .ODDDDDDDDDO.
+        ..OOOOOOOOO..
+    """)),
+    'down': ((8, 11), tpl("""
+        ..OOOOOOOOOOOOO..
+        .OLLLLLLLLLLLLLO.
+        OLMMMMMMMMMMMMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OLMMO.......OMMLO
+        OMMMO.......OMMMO
+        OMMMO.......OMMMO
+        ODDDO.......ODDDO
+        .OOO.........OOO.
+    """)),
+    'up': ((9, 12), tpl("""
+        ..OOOOOOOOOOO..
+        .OLLLLLLLLLLLO.
+        OLMMMMMMMMMMMLO
+        OMMMMMMMMMMMMMO
+        OMMMMMMMMMMMMMO
+        OMMMMMMMMMMMMMO
+        OMMMMMMMMMMMMMO
+        ODDDDDDDDDDDDDO
+        OMOOOOOOOOOOOMO
+        OMO.........OMO
+        OMO.........OMO
+        ODO.........ODO
+        OOO.........OOO
+    """)),
+}
+
+
+def moss_texture(f, x, y, ch, i, j):
+    if ch == 'M':
+        r = rnd('cloak', f // 7, i, j)
+        if r < 0.2:
+            return 'C'
+        if r < 0.34:
+            return 'L'
+        if r < 0.38:
+            return 'H'
+    return ch
+
+
+def moss_fringe(f, view, k, x, yb):
+    return (2, 3, 1, 2, 3, 2, 1, 3)[(k + f) % 8]
+
+
+FERN = tpl("""
+    .L.
+    LML
+    .M.
+""")
+FERN_SPOTS = {'side': [(10, 19), (18, 20)], 'down': [(9, 22), (22, 22)], 'up': [(10, 21), (21, 21)]}
+# seasonal trims: little leaves / blossoms / frost dots, body space per view
+TRIM_SPOTS = {
+    'side': [(10, 15, 'T1'), (11, 17, 'T2'), (20, 15, 'T1'), (19, 18, 'T3'), (12, 21, 'T1'), (17, 21, 'T2'), (10, 20, 'T3')],
+    'down': [(9, 13, 'T1'), (23, 13, 'T1'), (10, 16, 'T2'), (22, 16, 'T2'), (9, 19, 'T3'), (23, 19, 'T3'), (10, 24, 'T1'), (22, 24, 'T1')],
+    'up': [(10, 14, 'T1'), (22, 14, 'T1'), (12, 16, 'T2'), (20, 16, 'T2'), (11, 19, 'T3'), (21, 19, 'T3')],
+}
+
+
+def draw_moss_cloak(anchors, season='summer'):
+    p = dict(PALS['ForestSpirit_MossCloak'])
+    trim = PALS['ForestSpirit_Trim_' + season]
+    if season == 'winter':
+        p['F'] = hexc('c8dcec')  # frosted strand tips
+    L = draw_pad(anchors, p, moss_texture, templates=MOSS_CLOAK, fringe=True, fringe_fn=moss_fringe)
+    fp = saddle_footprint(anchors)
+    for f, view, dx, dy in body_views(anchors):
+        fx, fy = origin(f)
+        for x, y in FERN_SPOTS[view]:
+            for j, row in enumerate(FERN):
+                for i, c in enumerate(row):
+                    px, py = x + dx + i, y + dy + j
+                    if c != '.' and L.has(f, px, py) and not fp[fy + py, fx + px]:
+                        L.put(f, px, py, p['H'] if c == 'L' else p['L'], 'L')
+        for x, y, t in TRIM_SPOTS[view]:
+            px, py = x + dx, y + dy
+            if L.has(f, px, py):
+                L.put(f, px, py, trim[t], t)
+    return L
+
+
+def runes(L, f, view, hx, hy, icon):
+    p = PALS['ForestSpirit_Runes']
+    for n, (x, y, s) in enumerate(BRIDLE.get(view, [])):
+        if n % 3 == 1:
+            L.put(f, x + hx, y + hy, p['A'])
+    glyph = {'side': [(26, 12, 'B'), (27, 11, 'A'), (27, 13, 'A')], 'down': [(16, 22, 'B'), (15, 23, 'A'), (17, 23, 'A')]}.get(view, [])
+    for x, y, c in glyph:
+        L.put(f, x + hx, y + hy, p[c])
+
+
+def vine(L, f, view, hx, hy, icon):
+    p = PALS['ForestSpirit_Vine']
+    for n, (x, y, s) in enumerate(BRIDLE.get(view, [])):
+        if n % 3 == 0:
+            L.put(f, x + hx, y + hy, p['L'])
+    leaves = {'side': [(24, 10), (24, 14), (26, 8), (28, 17)], 'down': [(12, 22), (20, 22), (15, 19), (17, 26)], 'up': [(13, 5), (19, 5)]}.get(view, [])
+    for x, y in leaves:
+        L.put(f, x + hx, y + hy, p['L'])
+    flowers = {'side': [(26, 10, 'W'), (25, 13, 'P'), (27, 16, 'Y')], 'down': [(13, 23, 'W'), (19, 23, 'P'), (16, 25, 'Y')], 'up': [(16, 6, 'P')]}.get(view, [])
+    for x, y, c in flowers:
+        L.put(f, x + hx, y + hy, p[c])
+
+
+# small deer-antler circlet (head space): twig band, two short branching antlers, a couple of leaves.
+# Hand-drawn per view; L bone, M bone shadow, O outline, T twig band, 1/2 seasonal leaves, F far antler (shadowed)
+ANTLER_TPL = {
+    'side': ((24, 1), tpl("""
+        ...O...O..
+        ..OFO.OLO.
+        ...OFOOLO.
+        ....OOLMO.
+        .....OLO..
+        ....1TTT2.
+    """)),
+    'down': ((11, 12), tpl("""
+        .O.......O.
+        OLO.....OLO
+        .OLO...OLO.
+        ..OL2T1LO..
+        ...TTTTT...
+    """)),
+    'up': ((11, 0), tpl("""
+        .O.......O.
+        OLO.....OLO
+        .OLOO.OOLO.
+        ..OLLOLLO..
+        ...OLOLO...
+        ...1TTT2...
+    """)),
+}
+
+
+def _antlers_at(L, f, view, hx, hy, p, trim, season):
+    (ox, oy), rows = ANTLER_TPL[view]
+    top = {}
+    for j, row in enumerate(rows):
+        for i, ch in enumerate(row):
+            if ch in 'LF' and i not in top:
+                top[i] = j
+    for j, row in enumerate(rows):
+        for i, ch in enumerate(row):
+            if ch == '.':
+                continue
+            if ch == 'L':
+                c = trim['T3'] if (season == 'winter' and top.get(i) == j) else p['L']
+            elif ch == 'F':
+                c = p['M']
+            elif ch == '1':
+                c = trim['T1']
+            elif ch == '2':
+                c = trim['T2']
+            else:
+                c = p[ch]
+            L.put(f, ox + i + hx, oy + j + hy, c, ch)
+
+
+def draw_antler_crown(anchors, season='summer'):
+    p = PALS['ForestSpirit_Antlers']
+    trim = PALS['ForestSpirit_Trim_' + season]
+    L = Layer()
+    for f in range(28):
+        for view, hx, hy in head_items(anchors, f):
+            if view in ('side', 'down'):
+                _antlers_at(L, f, view, hx, hy, p, trim, season)
+        if VIEW_OF.get(f) == 'up':
+            hx, hy = up_head_anchor(anchors, f)
+            _antlers_at(L, f, 'up', hx, hy, p, trim, season)
+    return L
+
+
+# fireflies / wisps around the head (head space), bobbing a pixel from frame to frame; never a moon
+WISPS = {
+    'side': [(21, 3, 'G'), (31, 10, 'Q'), (19, 14, 'G'), (30, 1, 'G')],
+    'down': [(10, 12, 'G'), (22, 11, 'Q'), (8, 20, 'Q'), (24, 19, 'G')],
+    'up': [(10, 2, 'G'), (22, 3, 'Q'), (8, 8, 'Q'), (24, 9, 'G')],
+}
+
+
+def draw_wisps(anchors):
+    p = PALS['ForestSpirit_Wisps']
+    L = Layer()
+    for f in range(28):
+        if f in ICON_FRAMES:
+            continue
+        heads = [(v, hx, hy) for v, hx, hy in head_items(anchors, f) if v in ('side', 'down')]
+        if VIEW_OF.get(f) == 'up':
+            heads = [('up',) + up_head_anchor(anchors, f)]
+        for view, hx, hy in heads:
+            for n, (x, y, g) in enumerate(WISPS[view]):
+                bob = (0, -1, 0, 1)[(f + n) % 4]
+                cx, cy = x + hx, y + hy + bob
+                cx = min(max(cx, 1), FRAME - 2)
+                cy = min(max(cy, 1), FRAME - 2)
+                for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    if not L.has(f, cx + ddx, cy + ddy):
+                        L.put(f, cx + ddx, cy + ddy, p[g], g)
+                L.put(f, cx, cy, p['C'] if g == 'G' else p['K'], 'C')
+    return L
+
+
+BREED_COATS['ForestSpirit_Spirit'] = dict(
+    outline='262c20', body=shade_set('dadcca', 'c2c6b0', 'a8ae94', '8e967a', '767e64'),
+    legs=shade_set('8a9478', '727e62', '5e6a50', '4e5842', '3e4634'),
+    mane=('b8c898', 'e4ecd0'), mane_streak='7f9f52', streak_rate=0.18, dapple=True, glow='e0ffc0')
 
 
 # ---------------------------------------------------------------------------------------------
@@ -1347,12 +1750,23 @@ def build_all(anchors, include_coats, vanilla):
 
     out['saddles/Witchy_Broomstick'] = draw_broomstick(anchors)
     out['saddles/Witchy_Grimoire'] = draw_saddle(anchors, P['Witchy_Grimoire'], grimoire)
-    out['pads/Witchy_MossMushroom'] = draw_pad(anchors, P['Witchy_MossMushroom'], moss_mushroom)
+    out['pads/Witchy_MossMushroom'] = add_mushrooms(draw_pad(anchors, P['Witchy_MossMushroom'], moss_mushroom), anchors, P['Witchy_MossMushroom'])
     out['pads/Witchy_StarryHex'] = draw_pad(anchors, P['Witchy_StarryHex'], starry_hex)
     out['bridles/Witchy_PotionVials'] = draw_bridle(anchors, P['Witchy_PotionVials'], potion_vials)
     out['bridles/Witchy_CrescentCharm'] = draw_bridle(anchors, P['Witchy_CrescentCharm'], crescent_charm)
     out['styles/Witchy_Hat'] = draw_witch_hat(anchors)
     out['styles/Witchy_Familiar'] = draw_familiar(anchors)
+
+    out['saddles/ForestSpirit_Heartwood'] = draw_heartwood(anchors)
+    out['saddles/ForestSpirit_RootStone'] = draw_saddle(anchors, P['ForestSpirit_RootStone'], root_stone)
+    out['bridles/ForestSpirit_GlowingRunes'] = draw_bridle(anchors, P['ForestSpirit_Runes'], runes)
+    out['bridles/ForestSpirit_Vine'] = draw_bridle(anchors, P['ForestSpirit_Vine'], vine)
+    out['styles/ForestSpirit_WispHalo'] = draw_wisps(anchors)
+    out['pads/ForestSpirit_MossCloak'] = draw_moss_cloak(anchors)
+    out['styles/ForestSpirit_AntlerCrown'] = draw_antler_crown(anchors)
+    for season in FS_SEASONS:
+        out['pads/ForestSpirit_MossCloak.' + season] = draw_moss_cloak(anchors, season)
+        out['styles/ForestSpirit_AntlerCrown.' + season] = draw_antler_crown(anchors, season)
 
     out['styles/FlowerDance_Crown'] = draw_crown(anchors, P['FlowerDance_Crown'])
     out['styles/Luau_Lei'] = draw_lei(anchors, P['Luau_Lei'])

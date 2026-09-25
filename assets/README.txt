@@ -12,7 +12,8 @@ Put PNGs in these folders:
   bridles\   bridle overlays.
   styles\    styling overlays, e.g. a coloured mane (drawn over the coat, under the tack).
 
-Layer order, bottom to top: coat, style, saddle, pad, bridle.
+Layer order, bottom to top: coat, style, pad, saddle, bridle (pads sit under saddles, so any pad
+works with any saddle).
 
 PNG requirements
 - Exactly 224 x 128 pixels: the vanilla horse sheet layout (7 columns x 4 rows of 32x32 frames,
@@ -29,6 +30,9 @@ Names
   ("Spirit's Eve: Pumpkin"). Add your own prefixes there; others are listed under "Other".
 - "Name@elle.png" next to "Name.png" is an optional fit of the same overlay for Elle-shaped horse
   bodies; it's used automatically, not listed separately.
+- "Name.spring.png", "Name.summer.png", "Name.fall.png", "Name.winter.png" next to "Name.png" are optional
+  per-season versions, picked automatically from the in-game season ("Name.fall@elle.png" for the Elle fit).
+  "Name.png" is used for any season without its own file. They aren't listed separately.
 - Folder and file names aren't case-sensitive. Two files with the same name, or identical copies,
   are shown once.
 

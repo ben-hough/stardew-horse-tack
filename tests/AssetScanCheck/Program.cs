@@ -122,7 +122,46 @@ internal static class Program
             Check(withElle.Collections(TackLayer.Coat).Count == 4, "coat collections: Galaxy + 3 Elle groups (family, colours, breeds)");
             Check(AssetRegistry.ElleCoatFamily("VoidShire") == "collection.elle-family" && AssetRegistry.ElleCoatFamily("Teal") == "collection.elle-colours" && AssetRegistry.ElleCoatFamily("Epona") == "collection.elle-breeds", "Elle family grouping");
 
-            // 5. pad-needs-saddle rule
+            // 5. layer order: pads go under saddles, so an Elle pad never paints over a HorseTack saddle (or the other way round)
+            var mixed = new TackSelection { Saddle = "saddles/spirits-eve-pumpkin", Pad = "Elle.CuterHorses/Pad_LightBlue" };
+            Check(withElle.OverlayOrder(mixed).SequenceEqual(new[] { TackLayer.Style, TackLayer.Pad, TackLayer.Saddle, TackLayer.Bridle }), "Elle pad drawn under HorseTack saddle");
+            var hers = new TackSelection { Saddle = "Elle.CuterHorses/Saddle_Brown", Pad = "pads/lewis-lucky-purple-shorts" };
+            Check(withElle.OverlayOrder(hers).SequenceEqual(new[] { TackLayer.Style, TackLayer.Pad, TackLayer.Saddle, TackLayer.Bridle }), "HorseTack pad drawn under Elle saddle");
+
+            // 6. per-season files: Name.<season>.png / Name.<season>@elle.png attach to Name.png and aren't options of their own
+            Directory.Delete(assets, true);
+            Png(assets, "pads", "ForestSpirit_MossCloak.png", 50);
+            Png(assets, "pads", "ForestSpirit_MossCloak@elle.png", 51);
+            Png(assets, "pads", "ForestSpirit_MossCloak.fall.png", 52);
+            Png(assets, "pads", "ForestSpirit_MossCloak.Winter.png", 53);
+            Png(assets, "pads", "ForestSpirit_MossCloak.fall@elle.png", 54);
+            Png(assets, "pads", "Orphan.spring.png", 55);                 // no base file -> ignored
+            Png(assets, "styles", "Crown.png", 56);
+            Png(assets, "styles", "Crown.spring.png", 57);                // no @elle fit at all -> vanilla seasonal used on Elle bodies
+            Png(assets, "saddles", "Plain.png", 58);
+            Png(assets, "saddles", "Plain@elle.png", 59);
+            Png(assets, "saddles", "Plain.fall.png", 60);                 // has @elle fit but no fall@elle -> Elle bodies keep the @elle fit
+            var seasons = new AssetRegistry(FakeHelper.Create(root, elleDir: null)) { SeasonProvider = () => "Fall" };
+            seasons.Reload();
+            Check(seasons.TotalCount == 3, "seasonal files not counted as options (3 options)");
+            TackOption cloak = seasons.Get(TackLayer.Pad).Single();
+            Check(cloak.Id == "pads/forest-spirit-moss-cloak" && cloak.IsSeasonal && cloak.SeasonalPaths.Count == 3, "seasonal files attached to the base option (same id)");
+            Check(cloak.ResolvePath(false, "fall") == "assets/pads/ForestSpirit_MossCloak.fall.png", "fall, vanilla body");
+            Check(cloak.ResolvePath(true, "fall") == "assets/pads/ForestSpirit_MossCloak.fall@elle.png", "fall, Elle body");
+            Check(cloak.ResolvePath(false, "winter") == "assets/pads/ForestSpirit_MossCloak.Winter.png", "season names case-insensitive");
+            Check(cloak.ResolvePath(true, "winter") == "assets/pads/ForestSpirit_MossCloak@elle.png", "Elle body without that season's fit keeps the @elle fit");
+            Check(cloak.ResolvePath(false, "spring") == "assets/pads/ForestSpirit_MossCloak.png", "missing season -> base file");
+            Check(cloak.ResolvePath(false, null) == "assets/pads/ForestSpirit_MossCloak.png", "no season -> base file");
+            TackOption crown = seasons.Get(TackLayer.Style).Single();
+            Check(crown.ResolvePath(true, "spring") == "assets/styles/Crown.spring.png", "no @elle fit -> vanilla seasonal on Elle body");
+            Check(seasons.Get(TackLayer.Saddle).Single().ResolvePath(true, "fall") == "assets/saddles/Plain@elle.png", "body fit wins over season");
+            Check(seasons.CurrentSeason() == "fall", "season provider normalised");
+            Check(seasons.SeasonKey(new TackSelection { Saddle = "saddles/plain", Pad = "pads/forest-spirit-moss-cloak" }) == "@fall", "season in cache key when a seasonal layer is chosen");
+            Check(seasons.SeasonKey(new TackSelection { Style = "styles/unknown" }) == "", "no season key without seasonal layers");
+            seasons.SeasonProvider = () => "not-a-season";
+            Check(seasons.CurrentSeason() == "summer", "bad season -> summer");
+
+            // 7. pad-needs-saddle rule
             var sel = new TackSelection { Pad = "pads/blue" }.Normalize();
             Check(sel.Pad == "", "pad dropped without saddle");
             sel = new TackSelection { Saddle = "saddles/brown", Pad = "pads/blue" }.Normalize();

@@ -1,6 +1,6 @@
 namespace MrGlim.HorseTack.Framework
 {
-    /// <summary>A selectable layer. Draw order (bottom to top): coat, style, saddle, pad, bridle.</summary>
+    /// <summary>A selectable layer. Draw order (bottom to top): coat, style, pad, saddle, bridle (see AssetRegistry.OverlayOrder).</summary>
     internal enum TackLayer
     {
         Coat,
