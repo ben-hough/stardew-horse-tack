@@ -3,9 +3,20 @@
   "wizard.title": "Stable Wizard",
   "wizard.step": "Step {{current}} of {{total}}: {{name}}",
   "wizard.owner": "Owner: {{owner}}",
-  "wizard.confirm-hint": "Press Apply to save. Everyone with Horse Tack & Styling and the same PNGs in its assets folder will see this look.",
-  "wizard.no-art": "No tack found in the assets folder. Add 224x128 PNGs to Mods/HorseTack/assets/{{folder}} (see README.txt there) to get more choices.",
-  "wizard.empty-layer": "No art in Mods/HorseTack/assets/{{folder}} yet, so only None is available.",
+  "wizard.confirm-hint": "Press Apply to save. Every player sees this look if they have Horse Tack & Styling and the same art (anything a player is missing shows as the plain horse for them).",
+  "wizard.no-art": "No horse art found. Put 224x128 PNGs in Mods/HorseTack/assets/{{folder}} (see README.txt there), or install Elle's Cuter Horses, to get more choices.",
+  "wizard.empty-layer": "No coats in Mods/HorseTack/assets/{{folder}} yet, so only Keep current is available.",
+
+  // collection filter (Left/Right, D-pad left/right or the arrows; shoulder buttons / PageUp/PageDown jump a page)
+  "filter.all": "All",
+  "filter.label": "{{name}} ({{current}}/{{total}})",
+
+  // collections for Elle's Cuter Horses art (read from her mod at runtime)
+  "collection.other": "Other",
+  "collection.elle-tack": "Elle's Cuter Horses",
+  "collection.elle-family": "Elle: {{family}}",
+  "collection.elle-colours": "Elle: Bright colours",
+  "collection.elle-breeds": "Elle: Breeds",
 
   "step.horse": "Horse",
   "step.coat": "Coat",
@@ -37,7 +48,7 @@
   "message.horse-not-found": "That horse couldn't be found.",
   "message.tractor": "That's a tractor, not a horse.",
   "message.dismount-first": "Someone is riding {{horse}}. Try again after they dismount.",
-  "message.unknown-option": "The host doesn't have the art '{{id}}' installed.",
+  "message.unknown-option": "'{{id}}' isn't a valid choice for that layer.",
   "message.host-missing-mod": "The host needs Horse Tack & Styling installed to restyle horses.",
 
   // config

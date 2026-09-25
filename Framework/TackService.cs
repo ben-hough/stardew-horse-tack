@@ -88,7 +88,8 @@ namespace MrGlim.HorseTack.Framework
                     result.Arg = id;
                     return Fail(result, "message.unknown-option");
                 }
-                // store the canonical id, so a copy of the same art (bundled vs installed) resolves the same on every computer
+                // Unknown-but-well-formed ids are accepted (e.g. Elle art the host doesn't have): each computer draws what it has.
+                // Store the canonical id, so a duplicate copy of the same art resolves the same on every computer.
                 sel.Set(layer, this.Registry.Canonical(id));
             }
 

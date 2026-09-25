@@ -24,6 +24,13 @@ namespace MrGlim.HorseTack.Framework
                 Warn(msg);
         }
 
+        /// <summary>Log a trace message only the first time this key is seen.</summary>
+        public static void TraceOnce(string key, string msg)
+        {
+            if (Once.Add(key))
+                Trace(msg);
+        }
+
         public static void ResetOnce() => Once.Clear();
     }
 }

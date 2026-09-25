@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Unit check for Framework/AssetRegistry.cs: scans a temporary Mods/HorseTack/assets folder (mixed-case folders, prefixes, duplicates, bad sizes). -->
+  <!-- Unit check for Framework/AssetRegistry.cs: scans a temporary Mods/HorseTack/assets folder (mixed-case folders, prefixes, duplicates, bad sizes, @elle variants, collections.json, a fake Elle's Cuter Horses folder). -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
@@ -12,6 +12,7 @@
   <ItemGroup>
     <Compile Include="..\..\Framework\AssetRegistry.cs" Link="AssetRegistry.cs" />
     <Compile Include="..\..\Framework\TackOption.cs" Link="TackOption.cs" />
+    <Compile Include="..\..\Framework\CollectionCatalog.cs" Link="CollectionCatalog.cs" />
     <Compile Include="..\..\Framework\TackLayer.cs" Link="TackLayer.cs" />
     <Compile Include="..\..\Framework\TackSelection.cs" Link="TackSelection.cs" />
     <Compile Include="..\..\Framework\Log.cs" Link="Log.cs" />
@@ -20,5 +21,6 @@
     <Reference Include="StardewModdingAPI"><HintPath>$(GamePath)\StardewModdingAPI.dll</HintPath></Reference>
     <Reference Include="Stardew Valley"><HintPath>$(GamePath)\Stardew Valley.dll</HintPath></Reference>
     <Reference Include="SMAPI.Toolkit.CoreInterfaces"><HintPath>$(SmapiInternal)\SMAPI.Toolkit.CoreInterfaces.dll</HintPath></Reference>
+    <Reference Include="SMAPI.Toolkit"><HintPath>$(SmapiInternal)\SMAPI.Toolkit.dll</HintPath></Reference>
   </ItemGroup>
 </Project>

@@ -20,7 +20,7 @@ namespace MrGlim.HorseTack.Menus
         *********/
         private enum Step { Horse, Coat, Saddle, Pad, Bridle, Style, Confirm }
 
-        private sealed record Choice(string Id, string Label);
+        private sealed record Choice(string Id, string Label, string Tag = "");
 
         private const int RowHeight = 56;
         private int VisibleRows = 8;
@@ -33,6 +33,8 @@ namespace MrGlim.HorseTack.Menus
         private const int BackId = 800;
         private const int CancelId = 801;
         private const int NextId = 802;
+        private const int FilterLeftId = 902;
+        private const int FilterRightId = 903;
 
         /*********
         ** State
@@ -49,6 +51,10 @@ namespace MrGlim.HorseTack.Menus
         private List<Choice> Choices = new();
         private int SelectedIndex;
         private int ScrollOffset;
+        /// <summary>Selected collection filter per layer (0 = all).</summary>
+        private readonly Dictionary<TackLayer, int> Filters = new();
+        /// <summary>Filter names for the current step: "All" followed by each collection that has art.</summary>
+        private List<string> FilterNames = new();
 
         /*********
         ** UI components (fields are picked up by populateClickableComponentList)
@@ -59,9 +65,15 @@ namespace MrGlim.HorseTack.Menus
         public ClickableComponent BackButton = null!;
         public ClickableComponent CancelButton = null!;
         public ClickableComponent NextButton = null!;
+        public ClickableTextureComponent FilterLeft = null!;
+        public ClickableTextureComponent FilterRight = null!;
 
         private Rectangle PreviewBox;
         private Rectangle ListBox;
+        private Rectangle FilterBar;
+
+        /// <summary>Whether the current step shows a collection filter (only when its art spans two or more collections).</summary>
+        private bool HasFilter => this.CurrentStep != Step.Confirm && LayerFor(this.CurrentStep) != null && this.FilterNames.Count > 2;
 
         private Step CurrentStep => this.Steps[this.StepIndex];
 
@@ -120,6 +132,10 @@ namespace MrGlim.HorseTack.Menus
                 this.Cancel();
             else if (this.NextButton.containsPoint(x, y))
                 this.GoNext();
+            else if (this.FilterLeft.visible && this.FilterLeft.containsPoint(x, y))
+                this.ChangeFilter(-1);
+            else if (this.FilterRight.visible && this.FilterRight.containsPoint(x, y))
+                this.ChangeFilter(1);
             else if (this.UpArrow.visible && this.UpArrow.containsPoint(x, y))
                 this.Scroll(-1, playSound: true);
             else if (this.DownArrow.visible && this.DownArrow.containsPoint(x, y))
@@ -143,10 +159,10 @@ namespace MrGlim.HorseTack.Menus
             switch (b)
             {
                 case Buttons.LeftShoulder:
-                    this.Select(this.SelectedIndex - 1, snap: true);
+                    this.Page(-1);
                     break;
                 case Buttons.RightShoulder:
-                    this.Select(this.SelectedIndex + 1, snap: true);
+                    this.Page(1);
                     break;
                 case Buttons.LeftTrigger:
                     this.GoBack();
@@ -164,6 +180,13 @@ namespace MrGlim.HorseTack.Menus
             {
                 if (key == Keys.Up) { this.Select(this.SelectedIndex - 1); return; }
                 if (key == Keys.Down) { this.Select(this.SelectedIndex + 1); return; }
+                if (key == Keys.Left) { this.ChangeFilter(-1); return; }
+                if (key == Keys.Right) { this.ChangeFilter(1); return; }
+            }
+            if (this.CurrentStep != Step.Confirm)
+            {
+                if (key == Keys.PageUp) { this.Page(-1); return; }
+                if (key == Keys.PageDown) { this.Page(1); return; }
             }
             if (!gamepadSnapping)
             {
@@ -176,7 +199,7 @@ namespace MrGlim.HorseTack.Menus
         public override void receiveScrollWheelAction(int direction)
         {
             base.receiveScrollWheelAction(direction);
-            this.Scroll(direction > 0 ? -1 : 1, playSound: true);
+            this.Scroll(direction > 0 ? -3 : 3, playSound: true); // quick scroll: three rows per notch
         }
 
         public override void performHoverAction(int x, int y)
@@ -184,6 +207,8 @@ namespace MrGlim.HorseTack.Menus
             base.performHoverAction(x, y);
             this.UpArrow.tryHover(x, y);
             this.DownArrow.tryHover(x, y);
+            this.FilterLeft.tryHover(x, y);
+            this.FilterRight.tryHover(x, y);
         }
 
         /*********
@@ -253,6 +278,20 @@ namespace MrGlim.HorseTack.Menus
 
         private void DrawList(SpriteBatch b)
         {
+            if (this.HasFilter)
+            {
+                this.FilterLeft.draw(b);
+                this.FilterRight.draw(b);
+                int filterIndex = this.CurrentFilterIndex();
+                string name = filterIndex == 0 ? I18n.Get("filter.all") : this.FilterNames[filterIndex];
+                string text = I18n.Get("filter.label", new { name, current = filterIndex + 1, total = this.FilterNames.Count });
+                float maxFilterWidth = this.FilterRight.bounds.X - this.FilterLeft.bounds.Right - 16;
+                while (text.Length > 4 && Game1.smallFont.MeasureString(text).X > maxFilterWidth)
+                    text = text[..^2];
+                Vector2 filterSize = Game1.smallFont.MeasureString(text);
+                Utility.drawTextWithShadow(b, text, Game1.smallFont, new Vector2(this.FilterBar.Center.X - filterSize.X / 2, this.FilterBar.Center.Y - filterSize.Y / 2), Game1.textColor);
+            }
+
             for (int i = 0; i < this.Rows.Count; i++)
             {
                 ClickableComponent row = this.Rows[i];
@@ -276,8 +315,16 @@ namespace MrGlim.HorseTack.Menus
                     textX = row.bounds.X + 60;
                 }
 
+                float tagWidth = 0;
+                if (choice.Tag != "")
+                {
+                    Vector2 tagSize = Game1.smallFont.MeasureString(choice.Tag);
+                    tagWidth = tagSize.X + 16;
+                    Utility.drawTextWithShadow(b, choice.Tag, Game1.smallFont, new Vector2(row.bounds.Right - tagSize.X - 8, row.bounds.Y + (RowHeight - tagSize.Y) / 2), Game1.textColor * 0.55f);
+                }
+
                 string label = choice.Label;
-                float maxWidth = row.bounds.Right - textX - 8;
+                float maxWidth = row.bounds.Right - textX - 8 - tagWidth;
                 while (label.Length > 4 && Game1.smallFont.MeasureString(label).X > maxWidth)
                     label = label[..^2];
                 if (label != choice.Label)
@@ -302,7 +349,7 @@ namespace MrGlim.HorseTack.Menus
             }
 
             // position indicator
-            string pos = $"{this.SelectedIndex + 1}/{this.Choices.Count}";
+            string pos = $"{(this.SelectedIndex >= 0 ? (this.SelectedIndex + 1).ToString() : "-")}/{this.Choices.Count}";
             Vector2 posSize = Game1.smallFont.MeasureString(pos);
             Utility.drawTextWithShadow(b, pos, Game1.smallFont, new Vector2(this.ListBox.Right - posSize.X, this.ListBox.Bottom + 4), Game1.textColor * 0.8f);
         }
@@ -310,7 +357,7 @@ namespace MrGlim.HorseTack.Menus
         private void DrawSummary(SpriteBatch b)
         {
             int x = this.ListBox.X + 8;
-            int y = this.ListBox.Y + 8;
+            int y = this.FilterBar.Y + 8;
             var lines = new List<(string Label, string Value)>();
             if (this.Horses.Count > 1)
                 lines.Add((this.StepName(Step.Horse), HorseUtil.Name(this.CurrentHorse)));
@@ -364,18 +411,21 @@ namespace MrGlim.HorseTack.Menus
             _ => null
         };
 
-        /// <summary>Recompute which steps apply (the pad step only appears when a saddle is chosen). Layers with no art still get a step offering None.</summary>
+        /// <summary>Recompute which steps apply. The pad step only appears when a saddle is chosen; overlay steps with no art are skipped (unless the horse already has a value there, so it can be removed). Coat always stays for Keep current.</summary>
         private void RebuildSteps(Step? keep)
         {
             var steps = new List<Step>();
             if (this.Horses.Count > 1)
                 steps.Add(Step.Horse);
             steps.Add(Step.Coat);
-            steps.Add(Step.Saddle);
-            if (this.Selection.Saddle != "")
+            if (this.HasChoices(TackLayer.Saddle))
+                steps.Add(Step.Saddle);
+            if (this.Selection.Saddle != "" && this.HasChoices(TackLayer.Pad))
                 steps.Add(Step.Pad);
-            steps.Add(Step.Bridle);
-            steps.Add(Step.Style);
+            if (this.HasChoices(TackLayer.Bridle))
+                steps.Add(Step.Bridle);
+            if (this.HasChoices(TackLayer.Style))
+                steps.Add(Step.Style);
             steps.Add(Step.Confirm);
             this.Steps = steps;
 
@@ -386,12 +436,45 @@ namespace MrGlim.HorseTack.Menus
             }
         }
 
+        private bool HasChoices(TackLayer layer) => this.Registry.Get(layer).Count > 0 || this.Selection.Get(layer) != "";
+
+        private int CurrentFilterIndex()
+        {
+            if (LayerFor(this.CurrentStep) is not TackLayer layer)
+                return 0;
+            int index = this.Filters.TryGetValue(layer, out int i) ? i : 0;
+            return index >= 0 && index < this.FilterNames.Count ? index : 0;
+        }
+
+        /// <summary>Cycle the collection filter for the current step.</summary>
+        private void ChangeFilter(int delta)
+        {
+            if (!this.HasFilter || LayerFor(this.CurrentStep) is not TackLayer layer)
+                return;
+            int count = this.FilterNames.Count;
+            this.Filters[layer] = ((this.CurrentFilterIndex() + delta) % count + count) % count;
+            Game1.playSound("shwip");
+            this.LoadStep();
+            if (Game1.options.SnappyMenus)
+                this.snapToDefaultClickableComponent();
+        }
+
+        /// <summary>Jump a page of visible rows up or down.</summary>
+        private void Page(int delta)
+        {
+            if (this.CurrentStep == Step.Confirm || this.Choices.Count == 0)
+                return;
+            int from = Math.Max(0, this.SelectedIndex);
+            this.Select(from + delta * this.VisibleRows, snap: true);
+        }
+
         /// <summary>Load the choices for the current step and select the current value.</summary>
         private void LoadStep()
         {
             Step step = this.CurrentStep;
             var choices = new List<Choice>();
             int selected = 0;
+            this.FilterNames = new List<string>();
 
             if (step == Step.Horse)
             {
@@ -404,13 +487,25 @@ namespace MrGlim.HorseTack.Menus
             }
             else if (LayerFor(step) is TackLayer layer)
             {
+                this.FilterNames.Add("");
+                this.FilterNames.AddRange(this.Registry.Collections(layer));
+                int filterIndex = this.CurrentFilterIndex();
+                string? collection = this.FilterNames.Count > 2 && filterIndex > 0 ? this.FilterNames[filterIndex] : null;
+
                 choices.Add(new Choice("", layer == TackLayer.Coat ? I18n.Get("option.keep") : I18n.Get("option.none")));
                 foreach (TackOption option in this.Registry.Get(layer))
-                    choices.Add(new Choice(option.Id, option.DisplayName));
+                {
+                    if (collection == null)
+                        choices.Add(new Choice(option.Id, option.DisplayName, option.Source));
+                    else if (string.Equals(option.Collection, collection, StringComparison.OrdinalIgnoreCase))
+                        choices.Add(new Choice(option.Id, option.ShortName, option.Source));
+                }
 
                 string current = this.Selection.Get(layer);
                 selected = choices.FindIndex(c => string.Equals(c.Id, current, StringComparison.OrdinalIgnoreCase));
-                if (selected < 0)
+                if (selected < 0 && collection != null)
+                    selected = -1; // the current value is in another collection: nothing highlighted
+                else if (selected < 0)
                 {
                     // keep an unknown stored value selectable rather than silently dropping it
                     choices.Add(new Choice(current, I18n.Get("option.missing", new { id = current })));
@@ -541,7 +636,8 @@ namespace MrGlim.HorseTack.Menus
             this.PreviewBox = new Rectangle(x + 48, y + 96, previewSize, previewSize);
             int listX = this.PreviewBox.Right + 40;
             int listRight = x + w - 48 - 64;
-            int listY = this.PreviewBox.Y + 48;
+            this.FilterBar = new Rectangle(listX, this.PreviewBox.Y + 48, listRight - listX, 48);
+            int listY = this.FilterBar.Bottom + 8;
             this.VisibleRows = Math.Clamp((buttonY - 40 - listY) / RowHeight, 3, 8);
             this.ListBox = new Rectangle(listX, listY, listRight - listX, this.VisibleRows * RowHeight);
 
@@ -556,6 +652,9 @@ namespace MrGlim.HorseTack.Menus
 
             this.UpArrow = new ClickableTextureComponent(new Rectangle(listRight + 16, this.ListBox.Y, 44, 48), Game1.mouseCursors, new Rectangle(421, 459, 11, 12), 4f) { myID = UpArrowId };
             this.DownArrow = new ClickableTextureComponent(new Rectangle(listRight + 16, this.ListBox.Bottom - 48, 44, 48), Game1.mouseCursors, new Rectangle(421, 472, 11, 12), 4f) { myID = DownArrowId };
+
+            this.FilterLeft = new ClickableTextureComponent(new Rectangle(this.FilterBar.X, this.FilterBar.Y + 2, 48, 44), Game1.mouseCursors, new Rectangle(352, 495, 12, 11), 4f) { myID = FilterLeftId };
+            this.FilterRight = new ClickableTextureComponent(new Rectangle(this.FilterBar.Right - 48, this.FilterBar.Y + 2, 48, 44), Game1.mouseCursors, new Rectangle(365, 495, 12, 11), 4f) { myID = FilterRightId };
 
             int buttonW = 200;
             this.BackButton = new ClickableComponent(new Rectangle(x + 48, buttonY, buttonW, 68), "back") { myID = BackId };
@@ -576,6 +675,7 @@ namespace MrGlim.HorseTack.Menus
                 this.Rows[i].visible = i < visibleCount;
             this.UpArrow.visible = list && this.ScrollOffset > 0;
             this.DownArrow.visible = list && this.ScrollOffset + VisibleRows < this.Choices.Count;
+            this.FilterLeft.visible = this.FilterRight.visible = this.HasFilter;
             this.UpdateNeighbors();
         }
 
@@ -585,11 +685,16 @@ namespace MrGlim.HorseTack.Menus
             for (int i = 0; i < this.Rows.Count; i++)
             {
                 ClickableComponent row = this.Rows[i];
-                row.upNeighborID = i > 0 ? RowIdBase + i - 1 : -7777;
+                row.upNeighborID = i > 0 ? RowIdBase + i - 1 : (this.ScrollOffset > 0 || !this.HasFilter ? -7777 : FilterLeftId);
                 row.downNeighborID = i < visibleCount - 1 ? RowIdBase + i + 1 : (this.DownArrow.visible ? -7777 : NextId);
-                row.rightNeighborID = this.DownArrow.visible ? DownArrowId : (this.UpArrow.visible ? UpArrowId : -1);
-                row.leftNeighborID = -1;
+                // with a collection filter, D-pad left/right on a row switches collection (see customSnapBehavior)
+                row.rightNeighborID = this.HasFilter ? -7777 : (this.DownArrow.visible ? DownArrowId : (this.UpArrow.visible ? UpArrowId : -1));
+                row.leftNeighborID = this.HasFilter ? -7777 : -1;
             }
+            this.FilterLeft.rightNeighborID = FilterRightId;
+            this.FilterLeft.downNeighborID = RowIdBase;
+            this.FilterRight.leftNeighborID = FilterLeftId;
+            this.FilterRight.downNeighborID = RowIdBase;
             this.UpArrow.leftNeighborID = RowIdBase;
             this.UpArrow.downNeighborID = DownArrowId;
             this.DownArrow.leftNeighborID = RowIdBase + Math.Max(0, visibleCount - 1);
@@ -607,6 +712,12 @@ namespace MrGlim.HorseTack.Menus
 
         protected override void customSnapBehavior(int direction, int oldRegion, int oldID)
         {
+            bool onRow = oldID >= RowIdBase && oldID < RowIdBase + this.VisibleRows;
+            if (onRow && (direction == 1 || direction == 3))
+            {
+                this.ChangeFilter(direction == 1 ? 1 : -1);
+                return;
+            }
             // moving up from the first visible row scrolls the list
             if (direction == 0 && oldID == RowIdBase && this.ScrollOffset > 0)
             {

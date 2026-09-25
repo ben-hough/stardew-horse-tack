@@ -12,11 +12,13 @@ internal static class Program
 
     private static int Main()
     {
+        Log.Init(ConsoleMonitor.Create());
+        Log.Verbose = false;
         string root = Path.Combine(Path.GetTempPath(), "horsetack-scan-" + Guid.NewGuid().ToString("N"));
         try
         {
             // 1. no assets folder at all, then empty folders: nothing offered, no crash
-            var registry = new AssetRegistry(FakeHelper.Create(root));
+            var registry = new AssetRegistry(FakeHelper.Create(root, elleDir: null));
             Directory.CreateDirectory(root);
             registry.Reload();
             Check(registry.TotalCount == 0, "missing assets folder -> 0 options");
@@ -25,7 +27,13 @@ internal static class Program
             registry.Reload();
             Check(registry.TotalCount == 0, "empty folders -> 0 options");
             Check(registry.IsValid(TackLayer.Saddle, ""), "None is always valid");
-            Check(!registry.IsValid(TackLayer.Saddle, "saddles/brown"), "unknown id invalid when empty");
+            // another player's art this computer doesn't have: accepted if well-formed, drawn as vanilla/none here
+            Check(registry.IsValid(TackLayer.Saddle, "saddles/brown"), "unknown but well-formed id accepted (multiplayer: host may lack a farmhand's art)");
+            Check(registry.IsValid(TackLayer.Coat, "Elle.CuterHorses/SolidBrown"), "unknown Elle id accepted");
+            Check(!registry.IsValid(TackLayer.Saddle, "../../evil"), "malformed id rejected");
+            Check(!registry.IsValid(TackLayer.Saddle, new string('a', 200) + "/b"), "overlong id rejected");
+            Check(registry.GetPixels("Elle.CuterHorses/SolidBrown", BodyShape.Elle) == null, "missing art -> null pixels, no exception");
+            Check(registry.GetPixels("saddles/brown") == null, "missing art again -> null (logged once)");
 
             // 2. mixed-case folders and files
             Directory.Delete(Path.Combine(root, "assets"), true);
@@ -63,7 +71,58 @@ internal static class Program
             Check(!registry.IsValid(TackLayer.Saddle, "pads/blue"), "id must match layer");
             Check(registry.Get(TackLayer.Saddle)[0].RelativePath == "Assets/SADDLES/Brown.png" || registry.Get(TackLayer.Saddle)[0].RelativePath == "Assets/SADDLES/Saddle_Brown.png", "relative path keeps on-disk case");
 
-            // 3. pad-needs-saddle rule
+            // 3. @elle fit variants and collections.json
+            Directory.Delete(assets, true);
+            assets = Path.Combine(root, "assets");
+            Png(assets, "saddles", "SpiritsEve_Pumpkin.png", 20);
+            Png(assets, "saddles", "SpiritsEve_Pumpkin@elle.png", 21);   // variant, not its own option
+            Png(assets, "pads", "Lewis_LuckyPurpleShorts.png", 22);
+            Png(assets, "pads", "Orphan@elle.png", 23);                  // no base file -> ignored
+            Png(assets, "coats", "Galaxy_Stardust.png", 24);
+            Png(assets, "styles", "Plain.png", 25);                      // no prefix -> "Other"
+            File.WriteAllText(Path.Combine(assets, "collections.json"), "{ // comment\n \"Collections\": { \"SpiritsEve\": \"Spirit's Eve\", \"Lewis\": \"Lewis\", \"Galaxy\": \"Galaxy\" },\n \"Names\": { \"Lewis_LuckyPurpleShorts\": \"Lucky Purple Shorts\" }, }");
+            registry.Reload();
+            foreach (TackLayer l in TackLayers.DrawOrder)
+                Console.WriteLine($"  {l}: {Dump(l)}");
+            TackOption pumpkin = registry.Get(TackLayer.Saddle).Single();
+            Check(pumpkin.Id == "saddles/spirits-eve-pumpkin", "variant base id");
+            Check(pumpkin.DisplayName == "Spirit's Eve: Pumpkin" && pumpkin.ShortName == "Pumpkin" && pumpkin.Collection == "Spirit's Eve", "collection display name");
+            Check(pumpkin.ElleVariantRelativePath == "assets/saddles/SpiritsEve_Pumpkin@elle.png", "@elle variant attached to base");
+            Check(pumpkin.Source == "HorseTack" && pumpkin.Shape == BodyShape.Vanilla, "bundled source/shape");
+            Check(registry.Get(TackLayer.Pad).Single().DisplayName == "Lewis: Lucky Purple Shorts", "name override");
+            Check(registry.Get(TackLayer.Pad).Single().ElleVariantRelativePath == null, "orphan variant ignored");
+            Check(registry.Get(TackLayer.Style).Single().Collection == "collection.other" && registry.Get(TackLayer.Style).Single().DisplayName == "Plain", "unprefixed art -> Other");
+            Check(registry.TotalCount == 4, "variants not counted as options");
+
+            // 4. Elle's Cuter Horses installed (fake folder found via the mod registry)
+            string elle = Path.Combine(root, "EllesCuterHorses");
+            Png(Path.Combine(elle, "assets"), "Horse", "SolidBrown.png", 30);
+            Png(Path.Combine(elle, "assets"), "Horse", "AppaloosaBlack.png", 31);
+            Png(Path.Combine(elle, "assets"), "Horse", "Red.png", 32);
+            Png(Path.Combine(elle, "assets"), "Horse", "WhiteShire.png", 33);
+            Png(Path.Combine(elle, "assets"), "Horse", "Andalusian.png", 34);
+            Png(Path.Combine(elle, "assets"), "Horse", "PrismaticOverlay.png", 35);
+            Png(Path.Combine(elle, "assets"), "Saddles", "Saddle_Brown.png", 36);
+            Png(Path.Combine(elle, "assets"), "Saddles", "Pad_LightBlue.png", 37);
+            Png(Path.Combine(elle, "assets"), "Saddles", "Bridle_Black.png", 38);
+            Png(Path.Combine(elle, "assets"), "Saddles", "Readme.png", 39);          // no tack prefix -> ignored
+            Png(Path.Combine(elle, "assets"), "Saddles", "Saddle_Big.png", 40, 448, 256); // wrong size -> skipped
+            var withElle = new AssetRegistry(FakeHelper.Create(root, elleDir: elle));
+            withElle.Reload();
+            foreach (TackLayer l in TackLayers.DrawOrder)
+                Console.WriteLine($"  {l}: {string.Join(", ", withElle.Get(l).Select(o => $"{o.Id}='{o.DisplayName}' [{o.Source}/{o.Collection}]"))}");
+            Check(withElle.CountFrom("Elle") == 9 && withElle.CountFrom("HorseTack") == 4, "both sources merged (9 Elle + 4 HorseTack)");
+            Check(withElle.TryGet("Elle.CuterHorses/SolidBrown", out TackOption solid) && solid.Layer == TackLayer.Coat && solid.Shape == BodyShape.Elle && solid.Source == "Elle", "Elle coat id/shape/source");
+            Check(solid.Collection == "collection.elle-family", "Elle family collection");
+            Check(withElle.TryGet("Elle.CuterHorses/PrismaticOverlay", out TackOption prism) && prism.Layer == TackLayer.Style, "prismatic overlay is a style");
+            Check(withElle.TryGet("Elle.CuterHorses/Pad_LightBlue", out TackOption pad) && pad.Layer == TackLayer.Pad && pad.DisplayName == "Light Blue", "Elle pad");
+            Check(!withElle.TryGet("Elle.CuterHorses/Readme", out _), "unprefixed Elle tack file ignored");
+            Check(withElle.Get(TackLayer.Saddle).Select(o => o.Source).SequenceEqual(new[] { "HorseTack", "Elle" }), "HorseTack art listed before Elle art");
+            Check(withElle.Get(TackLayer.Coat).Select(o => o.Id).SequenceEqual(new[] { "coats/galaxy-stardust", "Elle.CuterHorses/SolidBrown", "Elle.CuterHorses/AppaloosaBlack", "Elle.CuterHorses/WhiteShire", "Elle.CuterHorses/Red", "Elle.CuterHorses/Andalusian" }), "Elle coats ordered by family");
+            Check(withElle.Collections(TackLayer.Coat).Count == 4, "coat collections: Galaxy + 3 Elle groups (family, colours, breeds)");
+            Check(AssetRegistry.ElleCoatFamily("VoidShire") == "collection.elle-family" && AssetRegistry.ElleCoatFamily("Teal") == "collection.elle-colours" && AssetRegistry.ElleCoatFamily("Epona") == "collection.elle-breeds", "Elle family grouping");
+
+            // 5. pad-needs-saddle rule
             var sel = new TackSelection { Pad = "pads/blue" }.Normalize();
             Check(sel.Pad == "", "pad dropped without saddle");
             sel = new TackSelection { Saddle = "saddles/brown", Pad = "pads/blue" }.Normalize();
@@ -98,18 +157,77 @@ internal static class Program
     }
 }
 
-/// <summary>An IModHelper stub that only provides DirectoryPath.</summary>
+/// <summary>An IModHelper stub providing DirectoryPath, a mod registry (Elle installed or not) and a content pack factory.</summary>
 public class FakeHelper : DispatchProxy
 {
     public string Dir = "";
+    public string? ElleDir;
 
-    public static IModHelper Create(string dir)
+    public static IModHelper Create(string dir, string? elleDir)
     {
         IModHelper proxy = Create<IModHelper, FakeHelper>();
         ((FakeHelper)(object)proxy).Dir = dir;
+        ((FakeHelper)(object)proxy).ElleDir = elleDir;
         return proxy;
     }
 
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => targetMethod?.Name switch
+    {
+        "get_DirectoryPath" => this.Dir,
+        "get_ModRegistry" => FakeRegistry.Create(this.ElleDir),
+        "get_ContentPacks" => Create<IContentPackHelper, FakePackHelper>(),
+        _ => null
+    };
+}
+
+public class FakeRegistry : DispatchProxy
+{
+    public string? ElleDir;
+
+    public static IModRegistry Create(string? elleDir)
+    {
+        IModRegistry proxy = Create<IModRegistry, FakeRegistry>();
+        ((FakeRegistry)(object)proxy).ElleDir = elleDir;
+        return proxy;
+    }
+
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => targetMethod?.Name switch
+    {
+        "Get" => this.ElleDir != null && (string?)args![0] == "Elle.CuterHorses" ? new FakeModInfo(this.ElleDir) : null,
+        "IsLoaded" => this.ElleDir != null && (string?)args![0] == "Elle.CuterHorses",
+        _ => null
+    };
+}
+
+/// <summary>Like SMAPI's IModMetadata: exposes DirectoryPath (read by reflection).</summary>
+public class FakeModInfo : IModInfo
+{
+    public FakeModInfo(string dir) => this.DirectoryPath = dir;
+    public string DirectoryPath { get; }
+    public IManifest Manifest => null!;
+    public bool IsContentPack => true;
+}
+
+public class FakePackHelper : DispatchProxy
+{
     protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
-        => targetMethod?.Name == "get_DirectoryPath" ? this.Dir : null;
+        => targetMethod?.Name == "CreateTemporary" ? Create<IContentPack, FakePack>() : null;
+}
+
+public class FakePack : DispatchProxy
+{
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) => null;
+}
+
+/// <summary>Prints mod log lines to the console, prefixed with their level.</summary>
+public class ConsoleMonitor : DispatchProxy
+{
+    public static IMonitor Create() => Create<IMonitor, ConsoleMonitor>();
+
+    protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+    {
+        if (targetMethod?.Name == "Log")
+            Console.WriteLine($"    [{args![1]}] {args[0]}");
+        return null;
+    }
 }

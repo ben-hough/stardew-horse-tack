@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -10,12 +11,22 @@ using StardewModdingAPI;
 
 namespace MrGlim.HorseTack.Framework
 {
-    /// <summary>Finds coat and overlay art in this mod's own assets folder and loads pixels on demand. No other mod's files are read.</summary>
+    /// <summary>Which body layout a coat sheet uses. Overlays can ship an "@elle" variant fitted to Elle's Cuter Horses bodies.</summary>
+    internal enum BodyShape { Vanilla, Elle }
+
+    /// <summary>Finds coat and overlay art in this mod's own assets folder and (read-only, at runtime) in Elle's Cuter Horses if installed, and loads pixels on demand.</summary>
     internal sealed class AssetRegistry
     {
-        private const string BundledSource = "assets folder";
+        private const string BundledSource = "HorseTack";
+        public const string ElleSource = "Elle";
+        public const string ElleModId = "Elle.CuterHorses";
+        private const string ElleBridgeId = "MrGlim.HorseTack.EllesCuterHorsesBridge";
+        public const string ElleVariantSuffix = "@elle";
         public const int SheetWidth = 224;
         public const int SheetHeight = 128;
+
+        private static readonly string[] EllePlainColours = { "Red", "Orange", "Yellow", "Green", "Teal", "Turquoise", "Blue", "Purple", "Pink" };
+        private static readonly string[] ElleFamilies = { "Appaloosa", "Pinto", "Solid", "Speckled", "Roan", "Void" };
 
         private readonly IModHelper Helper;
         private readonly Dictionary<TackLayer, List<TackOption>> Options = new();
@@ -23,8 +34,17 @@ namespace MrGlim.HorseTack.Framework
         private readonly Dictionary<string, TackOption> ByHash = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, PixelData?> Pixels = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Texture2D?> Textures = new(StringComparer.OrdinalIgnoreCase);
+        private IContentPack? ElleBridge;
+        private string? ElleBridgeDir;
+
         /// <summary>The mod's assets folder (Mods/HorseTack/assets).</summary>
         public string AssetsDirectory => FindChildDirectory(this.Helper.DirectoryPath, "assets") ?? Path.Combine(this.Helper.DirectoryPath, "assets");
+
+        /// <summary>Elle's Cuter Horses folder, if installed.</summary>
+        public string? ElleDirectory { get; private set; }
+
+        /// <summary>The body layout of the game's own horse texture on this computer: Elle's Content Patcher pack always replaces it when installed.</summary>
+        public BodyShape KeepCurrentShape => this.Helper.ModRegistry.IsLoaded(ElleModId) ? BodyShape.Elle : BodyShape.Vanilla;
 
         public AssetRegistry(IModHelper helper)
         {
@@ -35,11 +55,27 @@ namespace MrGlim.HorseTack.Framework
 
         public IReadOnlyList<TackOption> Get(TackLayer layer) => this.Options[layer];
 
+        /// <summary>Collection names in a layer, in list order (empty collections never appear).</summary>
+        public IReadOnlyList<string> Collections(TackLayer layer) => this.Options[layer].Select(o => o.Collection).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
         public int TotalCount => this.Options.Values.Sum(p => p.Count);
+
+        public int CountFrom(string source) => this.Options.Values.Sum(p => p.Count(o => o.Source == source));
 
         public bool TryGet(string id, out TackOption option) => this.ById.TryGetValue(id, out option!);
 
-        public bool IsValid(TackLayer layer, string id) => id == "" || (this.ById.TryGetValue(id, out TackOption? o) && o.Layer == layer);
+        /// <summary>Whether an id is acceptable for a layer. Known ids must match the layer; unknown ids are accepted if well-formed, because another player may have art this computer doesn't (each computer then draws what it has).</summary>
+        public bool IsValid(TackLayer layer, string id)
+        {
+            if (id == "")
+                return true;
+            if (this.ById.TryGetValue(id, out TackOption? o))
+                return o.Layer == layer;
+            return IsWellFormedId(id);
+        }
+
+        /// <summary>A safe-looking id such as "saddles/brown" or "Elle.CuterHorses/Saddle_Brown".</summary>
+        public static bool IsWellFormedId(string id) => id.Length <= 120 && Regex.IsMatch(id, @"^[A-Za-z0-9][A-Za-z0-9._\-]*/[A-Za-z0-9][A-Za-z0-9._\- ]*$");
 
         public string DisplayName(TackLayer layer, string id)
         {
@@ -48,7 +84,7 @@ namespace MrGlim.HorseTack.Framework
             return this.ById.TryGetValue(id, out TackOption? o) ? o.DisplayName : I18n.Get("option.missing", new { id });
         }
 
-        /// <summary>Rescan the assets folder.</summary>
+        /// <summary>Rescan the assets folder and Elle's Cuter Horses.</summary>
         public void Reload()
         {
             foreach (var list in this.Options.Values)
@@ -60,15 +96,21 @@ namespace MrGlim.HorseTack.Framework
 
             var stats = new ScanStats();
             this.ScanAssets(this.Helper.DirectoryPath, this.Helper.ModContent, BundledSource, stats);
+            int ours = this.TotalCount;
+
+            var elleStats = new ScanStats();
+            this.LoadElle(elleStats);
+            int elle = this.TotalCount - ours;
 
             if (this.TotalCount == 0)
             {
-                Log.Info($"No horse art found in {this.AssetsDirectory} yet, so the stable wizard will only offer Keep current / None. "
-                    + "Drop 224x128 PNGs into its coats, saddles, pads, bridles or styles folders (see README.txt there), then run horsetack_reload or restart.");
+                Log.Info($"No horse art found in {this.AssetsDirectory} yet, so the stable wizard will only offer Keep current. "
+                    + "Drop 224x128 PNGs into its coats, saddles, pads, bridles or styles folders (see README.txt there), or install Elle's Cuter Horses, then run horsetack_reload or restart.");
             }
             else
             {
-                Log.Info($"Found {this.Get(TackLayer.Coat).Count} coats, {this.Get(TackLayer.Saddle).Count} saddles, {this.Get(TackLayer.Pad).Count} pads, {this.Get(TackLayer.Bridle).Count} bridles, {this.Get(TackLayer.Style).Count} styles in the assets folder ({stats}).");
+                string elleText = this.ElleDirectory != null ? $"{elle} from Elle's Cuter Horses ({elleStats})" : "Elle's Cuter Horses not installed (optional)";
+                Log.Info($"Found {this.Get(TackLayer.Coat).Count} coats, {this.Get(TackLayer.Saddle).Count} saddles, {this.Get(TackLayer.Pad).Count} pads, {this.Get(TackLayer.Bridle).Count} bridles, {this.Get(TackLayer.Style).Count} styles: {ours} from HorseTack's assets folder ({stats}), {elleText}.");
             }
         }
 
@@ -83,59 +125,67 @@ namespace MrGlim.HorseTack.Framework
             return sel;
         }
 
-        /// <summary>Get premultiplied pixels for an option, or null (logged once) if missing/unreadable.</summary>
-        public PixelData? GetPixels(string id)
+        /// <summary>Get premultiplied pixels for an option drawn on a body of the given shape, or null if this computer doesn't have it (noted once in the trace log; the caller skips that layer).</summary>
+        public PixelData? GetPixels(string id, BodyShape shape = BodyShape.Vanilla)
         {
-            if (this.Pixels.TryGetValue(id, out PixelData? cached))
+            if (!this.ById.TryGetValue(id, out TackOption? option))
+            {
+                Log.TraceOnce("missing:" + id, $"Horse art '{id}' isn't installed on this computer (another player may have art you don't); drawing that layer as vanilla/none here.");
+                return null;
+            }
+
+            bool useVariant = shape == BodyShape.Elle && option.ElleVariantRelativePath != null;
+            string cacheKey = option.Id + (useVariant ? "|elle" : "");
+            if (this.Pixels.TryGetValue(cacheKey, out PixelData? cached))
                 return cached;
 
             PixelData? result = null;
-            if (!this.ById.TryGetValue(id, out TackOption? option))
-                Log.WarnOnce("missing:" + id, $"Horse art '{id}' isn't in this computer's Mods/HorseTack/assets folder; skipping that layer. (Everyone should have the same PNGs there.)");
-            else
+            Texture2D? tex = useVariant ? this.LoadTexture(option, option.ElleVariantRelativePath!, cacheKey) : this.GetTexture(option);
+            if (tex != null)
             {
-                Texture2D? tex = this.GetTexture(option);
-                if (tex != null)
-                {
-                    var data = new Color[tex.Width * tex.Height];
-                    tex.GetData(data);
-                    result = new PixelData(tex.Width, tex.Height, data);
-                }
+                var data = new Color[tex.Width * tex.Height];
+                tex.GetData(data);
+                result = new PixelData(tex.Width, tex.Height, data);
             }
-            this.Pixels[id] = result;
+            this.Pixels[cacheKey] = result;
             return result;
         }
 
         /// <summary>Get the loaded texture for an option (used for menu swatches), or null.</summary>
         public Texture2D? GetTexture(string id) => this.ById.TryGetValue(id, out TackOption? o) ? this.GetTexture(o) : null;
 
-        private Texture2D? GetTexture(TackOption option)
+        private Texture2D? GetTexture(TackOption option) => this.LoadTexture(option, option.RelativePath, option.Id);
+
+        private Texture2D? LoadTexture(TackOption option, string relativePath, string cacheKey)
         {
-            if (this.Textures.TryGetValue(option.Id, out Texture2D? cached))
+            if (this.Textures.TryGetValue(cacheKey, out Texture2D? cached))
                 return cached;
 
             Texture2D? tex = null;
             try
             {
-                tex = option.Content.Load<Texture2D>(option.RelativePath);
+                tex = option.Content.Load<Texture2D>(relativePath);
             }
             catch (Exception ex)
             {
-                Log.WarnOnce("load:" + option.Id, $"Couldn't load '{option.RelativePath}' from {option.SourceName}; skipping that layer.\n{ex.Message}");
+                Log.WarnOnce("load:" + cacheKey, $"Couldn't load '{relativePath}' from {option.SourceName}; skipping that layer.\n{ex.Message}");
             }
-            this.Textures[option.Id] = tex;
+            this.Textures[cacheKey] = tex;
             return tex;
         }
 
         /*********
-        ** Scanning
+        ** Scanning: HorseTack's own assets folder
         *********/
-        /// <summary>Scan <c>{root}/assets/{layer folder}/*.png</c> (folder and file names matched case-insensitively).</summary>
+        /// <summary>Scan <c>{root}/assets/{layer folder}/*.png</c> (folder and file names matched case-insensitively). "Name@elle.png" files are attached to "Name.png" as its fit for Elle-shaped bodies.</summary>
         private void ScanAssets(string root, IModContentHelper content, string source, ScanStats stats)
         {
             string? assets = FindChildDirectory(root, "assets");
             if (assets == null)
                 return;
+
+            CollectionCatalog catalog = CollectionCatalog.Load(assets);
+            var variants = new List<(TackLayer Layer, string Stem, string Relative)>();
 
             foreach (string dir in SafeDirectories(assets))
             {
@@ -145,77 +195,263 @@ namespace MrGlim.HorseTack.Framework
                 foreach (string file in SafePngFiles(dir))
                 {
                     string stem = Path.GetFileNameWithoutExtension(file);
-                    TackLayer layer = RouteLayer(folderLayer, stem);
                     string relative = Path.GetRelativePath(root, file).Replace('\\', '/');
-
-                    // same validation for every source: a PNG laid out like the vanilla horse sheet
-                    if (!TryReadPng(file, out int width, out int height, out byte[] bytes))
-                    {
-                        stats.Invalid++;
-                        Log.WarnOnce("invalid:" + file, $"Skipped {source} file '{relative}': not a readable PNG.");
+                    if (!this.ValidateSheet(file, relative, source, stats, out byte[] bytes))
                         continue;
-                    }
-                    if (width != SheetWidth || height != SheetHeight)
+
+                    if (stem.EndsWith(ElleVariantSuffix, StringComparison.OrdinalIgnoreCase))
                     {
-                        stats.Invalid++;
-                        Log.WarnOnce("size:" + file, $"Skipped {source} file '{relative}': it's {width}x{height}, but horse layers must be {SheetWidth}x{SheetHeight} (the vanilla horse sheet layout).");
+                        string baseStem = stem[..^ElleVariantSuffix.Length];
+                        variants.Add((RouteLayer(folderLayer, baseStem), baseStem, relative));
                         continue;
                     }
 
+                    TackLayer layer = RouteLayer(folderLayer, stem);
                     string key = CanonicalKey(layer, stem);
                     if (key == "")
                     {
                         stats.Invalid++;
                         continue;
                     }
-                    string folder = TackLayers.FolderName(layer);
-                    string id = $"{folder}/{key}";
-                    string hash = Convert.ToHexString(SHA1.HashData(bytes));
-
-                    // de-duplicate: same id (e.g. "Brown.png" and "Saddle_Brown.png") or identical image content in the same layer
-                    TackOption? existing = null;
-                    if (this.ById.TryGetValue(id, out TackOption? byId))
-                        existing = byId;
-                    else if (this.ByHash.TryGetValue($"{layer}:{hash}", out TackOption? byHash))
-                        existing = byHash;
-                    if (existing != null)
-                    {
-                        if (existing.Layer == layer)
-                            this.AddAlias(id, existing);
-                        stats.Duplicates++;
-                        Log.Trace($"Skipped duplicate {source} file '{relative}' (same as {existing.SourceName} '{existing.RelativePath}').");
-                        continue;
-                    }
-
-                    string display = layer switch
-                    {
-                        TackLayer.Style => StyleName(stem),
-                        TackLayer.Coat => Pretty(stem),
-                        _ => Pretty(StripTackPrefix(stem))
-                    };
-
-                    var option = new TackOption
+                    string id = $"{TackLayers.FolderName(layer)}/{key}";
+                    (string collection, string name) = catalog.Describe(layer, stem);
+                    this.TryAdd(new TackOption
                     {
                         Id = id,
                         Layer = layer,
-                        DisplayName = display,
-                        SourceName = source,
+                        DisplayName = collection == CollectionCatalog.DefaultCollection ? name : $"{collection}: {name}",
+                        ShortName = name,
+                        Collection = collection,
+                        Source = source,
+                        SourceName = "HorseTack's assets folder",
+                        Shape = BodyShape.Vanilla,
                         Content = content,
                         RelativePath = relative,
-                        Hash = hash
-                    };
-                    this.ById[id] = option;
-                    this.ByHash[$"{layer}:{hash}"] = option;
-                    this.Options[layer].Add(option);
-                    stats.Loaded++;
+                        Hash = Convert.ToHexString(SHA1.HashData(bytes))
+                    }, stats);
                 }
             }
+
+            foreach (var variant in variants)
+            {
+                string id = $"{TackLayers.FolderName(variant.Layer)}/{CanonicalKey(variant.Layer, variant.Stem)}";
+                if (this.ById.TryGetValue(id, out TackOption? option) && option.Source == source && variant.Layer != TackLayer.Coat)
+                    option.ElleVariantRelativePath ??= variant.Relative;
+                else
+                    Log.Trace($"Ignored '{variant.Relative}': no matching '{variant.Stem}.png' overlay next to it.");
+            }
+        }
+
+        /// <summary>Validate a candidate file: a PNG laid out like the vanilla horse sheet.</summary>
+        private bool ValidateSheet(string file, string relative, string source, ScanStats stats, out byte[] bytes)
+        {
+            if (!TryReadPng(file, out int width, out int height, out bytes))
+            {
+                stats.Invalid++;
+                Log.WarnOnce("invalid:" + file, $"Skipped {source} file '{relative}': not a readable PNG.");
+                return false;
+            }
+            if (width != SheetWidth || height != SheetHeight)
+            {
+                stats.Invalid++;
+                Log.WarnOnce("size:" + file, $"Skipped {source} file '{relative}': it's {width}x{height}, but horse layers must be {SheetWidth}x{SheetHeight} (the vanilla horse sheet layout).");
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>Add an option unless it duplicates an existing id or identical image in the same layer.</summary>
+        private void TryAdd(TackOption option, ScanStats stats)
+        {
+            TackOption? existing = null;
+            if (this.ById.TryGetValue(option.Id, out TackOption? byId))
+                existing = byId;
+            else if (this.ByHash.TryGetValue($"{option.Layer}:{option.Hash}", out TackOption? byHash))
+                existing = byHash;
+            if (existing != null)
+            {
+                if (existing.Layer == option.Layer)
+                    this.AddAlias(option.Id, existing);
+                stats.Duplicates++;
+                Log.Trace($"Skipped duplicate {option.SourceName} file '{option.RelativePath}' (same as {existing.SourceName} '{existing.RelativePath}').");
+                return;
+            }
+
+            this.ById[option.Id] = option;
+            this.ByHash[$"{option.Layer}:{option.Hash}"] = option;
+            this.Options[option.Layer].Add(option);
+            stats.Loaded++;
         }
 
         private void AddAlias(string alias, TackOption option)
         {
             if (!this.ById.ContainsKey(alias))
                 this.ById[alias] = option;
+        }
+
+        /*********
+        ** Scanning: Elle's Cuter Horses (optional, read-only)
+        *********/
+        private void LoadElle(ScanStats stats)
+        {
+            this.ElleDirectory = this.FindElleDirectory();
+            if (this.ElleDirectory == null)
+                return;
+
+            try
+            {
+                if (this.ElleBridge == null || this.ElleBridgeDir != this.ElleDirectory)
+                {
+                    this.ElleBridge = this.Helper.ContentPacks.CreateTemporary(
+                        directoryPath: this.ElleDirectory,
+                        id: ElleBridgeId,
+                        name: "Elle's Cuter Horses (read by HorseTack)",
+                        description: "Read-only view of Elle's Cuter Horses art.",
+                        author: "Elle/Junimods",
+                        version: new SemanticVersion(1, 0, 0)
+                    );
+                    this.ElleBridgeDir = this.ElleDirectory;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Trace($"Couldn't open Elle's Cuter Horses folder, so only HorseTack's own art is offered: {ex.Message}");
+                return;
+            }
+
+            IModContentHelper content = this.ElleBridge.ModContent;
+            string? assets = FindChildDirectory(this.ElleDirectory, "assets");
+            if (assets == null)
+                return;
+
+            string? horseDir = FindChildDirectory(assets, "Horse");
+            IEnumerable<string> horseFiles = (horseDir != null ? SafePngFiles(horseDir) : Array.Empty<string>())
+                .OrderBy(p => ElleCoatRank(Path.GetFileNameWithoutExtension(p))); // stable: alphabetical within each family
+            foreach (string file in horseFiles)
+            {
+                string stem = Path.GetFileNameWithoutExtension(file);
+                string relative = Path.GetRelativePath(this.ElleDirectory, file).Replace('\\', '/');
+                if (!this.ValidateSheet(file, relative, "Elle's Cuter Horses", stats, out byte[] bytes))
+                    continue;
+                bool isOverlay = stem.Contains("overlay", StringComparison.OrdinalIgnoreCase);
+                string name = isOverlay ? StyleName(stem) : Pretty(stem);
+                this.TryAdd(new TackOption
+                {
+                    Id = $"{ElleModId}/{stem}",
+                    Layer = isOverlay ? TackLayer.Style : TackLayer.Coat,
+                    DisplayName = name,
+                    ShortName = name,
+                    Collection = isOverlay ? I18n.Get("collection.elle-tack") : ElleCoatFamily(stem),
+                    Source = ElleSource,
+                    SourceName = "Elle's Cuter Horses",
+                    Shape = BodyShape.Elle,
+                    Content = content,
+                    RelativePath = relative,
+                    Hash = Convert.ToHexString(SHA1.HashData(bytes))
+                }, stats);
+            }
+
+            string? tackDir = FindChildDirectory(assets, "Saddles");
+            foreach (string file in tackDir != null ? SafePngFiles(tackDir) : Array.Empty<string>())
+            {
+                string stem = Path.GetFileNameWithoutExtension(file);
+                TackLayer? layer = TackPrefix(stem, out _);
+                if (layer == null)
+                    continue;
+                string relative = Path.GetRelativePath(this.ElleDirectory, file).Replace('\\', '/');
+                if (!this.ValidateSheet(file, relative, "Elle's Cuter Horses", stats, out byte[] bytes))
+                    continue;
+                string name = Pretty(StripTackPrefix(stem));
+                this.TryAdd(new TackOption
+                {
+                    Id = $"{ElleModId}/{stem}",
+                    Layer = layer.Value,
+                    DisplayName = name,
+                    ShortName = name,
+                    Collection = I18n.Get("collection.elle-tack"),
+                    Source = ElleSource,
+                    SourceName = "Elle's Cuter Horses",
+                    Shape = BodyShape.Elle,
+                    Content = content,
+                    RelativePath = relative,
+                    Hash = Convert.ToHexString(SHA1.HashData(bytes))
+                }, stats);
+            }
+        }
+
+        /// <summary>List order for Elle's coats: Solid, Appaloosa, Pinto, Speckled, Roan, Shire, Void, bright colours, breeds, then overlays.</summary>
+        private static int ElleCoatRank(string stem)
+        {
+            if (stem.Contains("overlay", StringComparison.OrdinalIgnoreCase))
+                return 99;
+            string[] order = { "Solid", "Appaloosa", "Pinto", "Speckled", "Roan" };
+            for (int i = 0; i < order.Length; i++)
+            {
+                if (stem.StartsWith(order[i], StringComparison.OrdinalIgnoreCase) && stem.Length > order[i].Length)
+                    return i;
+            }
+            if (stem.StartsWith("Void", StringComparison.OrdinalIgnoreCase) && stem.Length > 4)
+                return 6;
+            if (stem.EndsWith("Shire", StringComparison.OrdinalIgnoreCase))
+                return 5;
+            return EllePlainColours.Contains(stem, StringComparer.OrdinalIgnoreCase) ? 7 : 8;
+        }
+
+        /// <summary>Group Elle's coats into her families (Appaloosa, Pinto, ...), bright colours and breeds.</summary>
+        public static string ElleCoatFamily(string stem)
+        {
+            foreach (string family in ElleFamilies)
+            {
+                if (stem.StartsWith(family, StringComparison.OrdinalIgnoreCase) && stem.Length > family.Length)
+                    return I18n.Get("collection.elle-family", new { family });
+            }
+            if (stem.EndsWith("Shire", StringComparison.OrdinalIgnoreCase))
+                return I18n.Get("collection.elle-family", new { family = "Shire" });
+            if (EllePlainColours.Contains(stem, StringComparer.OrdinalIgnoreCase))
+                return I18n.Get("collection.elle-colours");
+            return I18n.Get("collection.elle-breeds");
+        }
+
+        /// <summary>Find Elle's folder through the SMAPI mod registry, falling back to scanning the Mods folder.</summary>
+        private string? FindElleDirectory()
+        {
+            IModInfo? info = this.Helper.ModRegistry.Get(ElleModId);
+            if (info == null)
+                return null; // not installed/loaded: stay silent
+            try
+            {
+                // IModInfo doesn't expose the folder publicly; SMAPI's implementation (IModMetadata) has DirectoryPath.
+                string? dir = info.GetType().GetProperty("DirectoryPath")?.GetValue(info) as string;
+                if (!string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir))
+                    return dir;
+            }
+            catch (Exception ex)
+            {
+                Log.Trace($"Mod registry lookup for Elle's folder failed: {ex.Message}");
+            }
+
+            // fallback: scan the Mods folder for Elle's manifest (handles registry changes in future SMAPI versions)
+            try
+            {
+                string? modsRoot = Directory.GetParent(this.Helper.DirectoryPath)?.FullName;
+                if (modsRoot == null)
+                    return null;
+                foreach (string manifest in Directory.EnumerateFiles(modsRoot, "manifest.json", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3, IgnoreInaccessible = true }))
+                {
+                    try
+                    {
+                        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(manifest), new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
+                        if (doc.RootElement.TryGetProperty("UniqueID", out JsonElement id) && string.Equals(id.GetString(), ElleModId, StringComparison.OrdinalIgnoreCase))
+                            return Path.GetDirectoryName(manifest);
+                    }
+                    catch { /* ignore unreadable manifests */ }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Trace($"Mods folder scan failed: {ex.Message}");
+            }
+            return null;
         }
 
         /// <summary>Map an assets subfolder name (case-insensitive) to its layer.</summary>

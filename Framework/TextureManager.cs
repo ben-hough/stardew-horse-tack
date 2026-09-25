@@ -151,11 +151,19 @@ namespace MrGlim.HorseTack.Framework
             PixelData? basePx = null;
             bool changed = false;
 
+            // Overlays pick the variant that fits the body underneath: a chosen coat knows its own shape; the game's own
+            // texture (Keep current, or a synced coat this computer doesn't have) is Elle-shaped when her pack is loaded here.
+            BodyShape shape = this.Registry.KeepCurrentShape;
             if (sel.Coat != "")
             {
                 basePx = this.Registry.GetPixels(sel.Coat);
-                if (basePx != null)
+                if (basePx != null && this.Registry.TryGet(sel.Coat, out TackOption coat))
+                {
+                    shape = coat.Shape;
                     changed = true;
+                }
+                else
+                    basePx = null; // missing here: fall back to the current (vanilla or Elle) texture
             }
             basePx ??= this.GetBasePixels(baseName);
             if (basePx == null)
@@ -169,9 +177,9 @@ namespace MrGlim.HorseTack.Framework
                 string id = sel.Get(layer);
                 if (id == "")
                     continue;
-                PixelData? overlay = this.Registry.GetPixels(id);
+                PixelData? overlay = this.Registry.GetPixels(id, shape);
                 if (overlay == null)
-                    continue; // already logged once
+                    continue; // not installed on this computer: skip this layer (noted once in the trace log)
                 if (overlay.Width != basePx.Width || overlay.Height != basePx.Height)
                 {
                     Log.WarnOnce($"size:{id}:{basePx.Width}x{basePx.Height}", $"'{id}' is {overlay.Width}x{overlay.Height} but the horse sheet is {basePx.Width}x{basePx.Height}; skipping that layer.");

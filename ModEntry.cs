@@ -23,6 +23,12 @@ namespace MrGlim.HorseTack
         /// <summary>Tile action added to the stable's front posts.</summary>
         public const string TileActionName = "MrGlim.HorseTack_OpenWizard";
 
+        /// <summary>Host farmer modData key publishing the host's "anyone can restyle" setting (farmer modData syncs to every farmhand).</summary>
+        public const string HostAnyoneCanEditKey = "MrGlim.HorseTack/HostAnyoneCanEdit";
+
+        /// <summary>Multiplayer Horse Reskin also replaces horse textures, so the two fight over the same sprite.</summary>
+        private const string MultiplayerHorseReskinId = "DelphinWave.MultiplayerHorseReskin";
+
         private static ModEntry? Instance;
 
         private ModConfig Config = new();
@@ -48,6 +54,7 @@ namespace MrGlim.HorseTack
 
             helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
+            helper.Events.GameLoop.DayStarted += (_, _) => this.PublishHostRules();
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.GameLoop.ReturnedToTitle += (_, _) => this.Textures.InvalidateAll();
             helper.Events.Content.AssetRequested += this.OnAssetRequested;
@@ -89,11 +96,35 @@ namespace MrGlim.HorseTack
         {
             this.Registry.Reload();
             this.RegisterConfigMenu();
+
+            if (this.Helper.ModRegistry.IsLoaded(MultiplayerHorseReskinId))
+            {
+                Log.Warn("Multiplayer Horse Reskin is installed. It also replaces horse textures, so the two mods will fight over how horses look "
+                    + "(and it shows invisible/missing horses without a skin content pack). Please remove MultiplayerHorseReskin and use HorseTack's stable wizard instead.");
+            }
         }
 
         private void OnSaveLoaded(object? sender, SaveLoadedEventArgs e)
         {
             this.Textures.InvalidateAll();
+            this.PublishHostRules();
+        }
+
+        /// <summary>On the host, publish the restyle permission on the host's own farmer so farmhands' wizards list the same horses the host will accept.</summary>
+        private void PublishHostRules()
+        {
+            if (!Context.IsWorldReady || !Context.IsMainPlayer)
+                return;
+            Game1.player.modData[HostAnyoneCanEditKey] = this.Config.AnyoneCanEdit ? "true" : "false";
+        }
+
+        /// <summary>The permission that counts: the host's setting (read from the synced host farmer on farmhands).</summary>
+        private bool EffectiveAnyoneCanEdit()
+        {
+            if (!Context.IsWorldReady || Context.IsMainPlayer)
+                return this.Config.AnyoneCanEdit;
+            return Game1.MasterPlayer?.modData.TryGetValue(HostAnyoneCanEditKey, out string? value) == true
+                && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
         }
 
         private void OnUpdateTicked(object? sender, UpdateTickedEventArgs e)
@@ -188,7 +219,7 @@ namespace MrGlim.HorseTack
 
             Farmer me = Game1.player;
             List<Horse> horses = HorseUtil.GetAllHorses()
-                .Where(h => HorseUtil.CanEdit(me, h, this.Config.AnyoneCanEdit))
+                .Where(h => HorseUtil.CanEdit(me, h, this.EffectiveAnyoneCanEdit()))
                 .OrderByDescending(h => h.ownerId.Value == me.UniqueMultiplayerID)
                 .ThenBy(h => HorseUtil.Name(h), StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -241,7 +272,7 @@ namespace MrGlim.HorseTack
                 foreach (Horse horse in HorseUtil.GetAllHorses())
                 {
                     TackSelection sel = TackSelection.FromModData(horse);
-                    bool canEdit = HorseUtil.CanEdit(Game1.player, horse, this.Config.AnyoneCanEdit);
+                    bool canEdit = HorseUtil.CanEdit(Game1.player, horse, this.EffectiveAnyoneCanEdit());
                     Log.Info($"{HorseUtil.Name(horse)} [{horse.HorseId}] owner={HorseUtil.OwnerName(horse)} editable={(canEdit ? "yes" : "no")}\n"
                         + $"    coat={Describe(TackLayer.Coat, sel.Coat)} style={Describe(TackLayer.Style, sel.Style)} saddle={Describe(TackLayer.Saddle, sel.Saddle)} pad={Describe(TackLayer.Pad, sel.Pad)} bridle={Describe(TackLayer.Bridle, sel.Bridle)}");
                 }
@@ -262,7 +293,7 @@ namespace MrGlim.HorseTack
                 foreach (TackLayer layer in layers)
                 {
                     var options = this.Registry.Get(layer);
-                    Log.Info($"{layer} ({options.Count}): none" + (options.Count > 0 ? ", " + string.Join(", ", options.Select(p => p.Id)) : ""));
+                    Log.Info($"{layer} ({options.Count}): none" + (options.Count > 0 ? ", " + string.Join(", ", options.Select(p => $"{p.Id} [{p.Source}]")) : ""));
                 }
             });
 
@@ -348,6 +379,7 @@ namespace MrGlim.HorseTack
                     this.Helper.WriteConfig(this.Config);
                     Log.Verbose = IsVerbose(this.Config);
                     this.Helper.GameContent.InvalidateCache("Data/Buildings");
+                    this.PublishHostRules();
                 }
             );
             gmcm.AddKeybindList(this.ModManifest, () => this.Config.OpenWizardKey, v => this.Config.OpenWizardKey = v,

@@ -16,11 +16,10 @@ poc/
 previews/
 elle/
 **/Elle*/
-# bundled drop folder: never commit art (keep the folder READMEs/.gitkeep)
-assets/**/*.png
-assets/**/*.PNG
-**/assets/**/*.png
-!docs/icon.png
+# HorseTack's own generated art in assets/ IS committed (original, see tools/art).
+# Never commit anyone else's art: Elle's Cuter Horses stays in her own mod folder.
+__pycache__/
+*.pyc
 tests/**/data/
 
 # secrets

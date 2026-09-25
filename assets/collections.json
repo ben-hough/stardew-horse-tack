@@ -1,0 +1,36 @@
+{
+  // File-name prefix (before the first "_") -> collection shown in the wizard, e.g. "SpiritsEve_Pumpkin.png" -> "Spirit's Eve: Pumpkin".
+  // Add your own prefixes here if you drop in art of your own; files without a known prefix are listed under "Other".
+  "Collections": {
+    "EggFestival": "Egg Festival",
+    "FlowerDance": "Flower Dance",
+    "Luau": "Luau",
+    "Jellies": "Moonlight Jellies",
+    "Fair": "Stardew Valley Fair",
+    "SpiritsEve": "Spirit's Eve",
+    "FestivalOfIce": "Festival of Ice",
+    "NightMarket": "Night Market",
+    "WinterStar": "Feast of the Winter Star",
+    "GoldenWalnut": "Ginger Island",
+    "Junimo": "Junimo",
+    "Iridium": "Iridium",
+    "Prismatic": "Prismatic",
+    "Galaxy": "Galaxy",
+    "Stardrop": "Stardrop",
+    "MrQi": "Mr. Qi",
+    "Joja": "Joja",
+    "Lewis": "Lewis"
+  },
+  // Optional display-name overrides, keyed by the file name without the Saddle_/Pad_/Bridle_ prefix or .png.
+  "Names": {
+    "Lewis_LuckyPurpleShorts": "Lucky Purple Shorts",
+    "Fair_BlueRibbon": "Blue Ribbon",
+    "WinterStar_JingleBells": "Jingle Bells",
+    "SpiritsEve_BatWings": "Bat Wings",
+    "WinterStar_SnowDusting": "Snow Dusting",
+    "FestivalOfIce_Frost": "Frost",
+    "GoldenWalnut_Gilded": "Gilded",
+    "Galaxy_Stardust": "Stardust",
+    "MrQi_Casino": "Casino"
+  }
+}
