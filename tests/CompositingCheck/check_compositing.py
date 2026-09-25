@@ -1,19 +1,25 @@
 #!/usr/bin/env python3
 """Unit check for Framework/Compositor.cs against Pillow's alpha_composite.
 
-usage: python check_compositing.py <elle_assets_dir> [vanilla_horse.png] [out_dir]
-Builds tests/CompositingCheck, composes several combos in the mod's order
-(coat, style, saddle, pad, bridle) with the C# code, and compares with Pillow.
-Needs Pillow + numpy + the .NET SDK. Writes previews to out_dir (default ./data, git-ignored).
+usage: python check_compositing.py [base.png|-] [overlay.png ...] [--out out_dir]
+Composes a base sheet plus overlays in the mod's order (coat, style, saddle, pad, bridle)
+with the C# code and compares with Pillow. Without arguments it uses generated 224x128 test
+sheets (an opaque base, hard-edged tack-like overlays and random semi-transparent overlays),
+so no art files are needed. Pass e.g. the vanilla horse sheet and your own assets PNGs to
+check real art too. Needs Pillow + numpy + the .NET SDK. Writes previews to out_dir
+(default ./data, git-ignored).
 """
 import os, subprocess, sys
 import numpy as np
 from PIL import Image
 
 here = os.path.dirname(os.path.abspath(__file__))
-elle = sys.argv[1]
-vanilla = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] != '-' else None
-out = sys.argv[3] if len(sys.argv) > 3 else os.path.join(here, 'data')
+args = sys.argv[1:]
+out = os.path.join(here, 'data')
+if '--out' in args:
+    i = args.index('--out')
+    out = args[i + 1]
+    del args[i:i + 2]
 os.makedirs(out, exist_ok=True)
 game = os.environ.get('GAME_PATH')
 build = ['dotnet', 'build', here, '-c', 'Release', '-o', os.path.join(out, 'bin'), '-v', 'q']
@@ -33,23 +39,32 @@ def unpremul(arr):
     rgb = np.where(alpha > 0, np.clip(np.round(a[..., :3] * 255 / np.maximum(alpha, 1)), 0, 255), 0)
     return Image.fromarray(np.concatenate([rgb, alpha], axis=2).astype(np.uint8), 'RGBA')
 
-E = lambda p: os.path.join(elle, p)
-cases = [
-    ('SolidBrown_saddle_pad_bridle', E('Horse/SolidBrown.png'), [E('Saddles/Saddle_Brown.png'), E('Saddles/Pad_Red.png'), E('Saddles/Bridle_Black.png')]),
-    ('PintoSilver_prismatic_saddle_bridle', E('Horse/PintoSilver.png'), [E('Horse/PrismaticOverlay.png'), E('Saddles/Saddle_Black.png'), E('Saddles/Bridle_BrightRed.png')]),
-    ('Fresian_bridle_only', E('Horse/Fresian.png'), [E('Saddles/Bridle_White.png')]),
-]
-if vanilla:
-    cases.append(('Vanilla_saddle_pad_bridle', vanilla, [E('Saddles/Saddle_Brown.png'), E('Saddles/Pad_Red.png'), E('Saddles/Bridle_Black.png')]))
-    cases.append(('Vanilla_prismatic', vanilla, [E('Horse/PrismaticOverlay.png')]))
-
-# synthetic semi-transparent overlays to exercise the blend maths (Elle's art is mostly fully opaque/transparent)
+W, H = 224, 128
 rng = np.random.default_rng(42)
+
+def save(name, arr):
+    path = os.path.join(out, name + '.png')
+    Image.fromarray(arr.astype(np.uint8), 'RGBA').save(path)
+    return path
+
+# generated sheets: opaque base, two hard-edged "tack" overlays (alpha 0/255), two random semi-transparent overlays
+base_arr = rng.integers(0, 256, size=(H, W, 4)); base_arr[..., 3] = 255
+gen_base = save('gen_base', base_arr)
+hard = []
 for i in range(2):
-    arr = rng.integers(0, 256, size=(128, 224, 4), dtype=np.uint8)
-    path = os.path.join(out, f'synthetic_{i}.png')
-    Image.fromarray(arr, 'RGBA').save(path)
-cases.append(('Synthetic_semitransparent', E('Horse/SolidBrown.png'), [os.path.join(out, 'synthetic_0.png'), os.path.join(out, 'synthetic_1.png')]))
+    arr = rng.integers(0, 256, size=(H, W, 4)); arr[..., 3] = np.where(rng.random((H, W)) < 0.2, 255, 0)
+    hard.append(save(f'gen_tack_{i}', arr))
+soft = [save(f'gen_soft_{i}', rng.integers(0, 256, size=(H, W, 4))) for i in range(2)]
+
+cases = [
+    ('Generated_tack', gen_base, hard),
+    ('Generated_semitransparent', gen_base, soft),
+    ('Generated_all', gen_base, hard + soft),
+]
+if args and args[0] != '-':
+    cases.append(('Given_base', args[0], args[1:] or hard))
+elif len(args) > 1:
+    cases.append(('Given_overlays', gen_base, args[1:]))
 
 worst = 0
 for name, base, overlays in cases:

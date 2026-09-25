@@ -37,7 +37,7 @@ namespace MrGlim.HorseTack.Framework
             }
         }
 
-        /// <summary>Apply cross-layer rules (a pad needs a saddle, like Elle's pack).</summary>
+        /// <summary>Apply cross-layer rules (a pad is only drawn with a saddle).</summary>
         public TackSelection Normalize()
         {
             if (this.Saddle == "")

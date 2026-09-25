@@ -1,6 +1,6 @@
 namespace MrGlim.HorseTack.Framework
 {
-    /// <summary>A selectable layer. Draw order (bottom to top) follows Elle's Cuter Horses: coat, style, saddle, pad, bridle.</summary>
+    /// <summary>A selectable layer. Draw order (bottom to top): coat, style, saddle, pad, bridle.</summary>
     internal enum TackLayer
     {
         Coat,
@@ -20,7 +20,7 @@ namespace MrGlim.HorseTack.Framework
 
         public static string ModDataKey(TackLayer layer) => ModDataPrefix + FolderName(layer).TrimEnd('s');
 
-        /// <summary>Content pack folder name under assets/.</summary>
+        /// <summary>Folder name under the mod's assets/ folder.</summary>
         public static string FolderName(TackLayer layer) => layer switch
         {
             TackLayer.Coat => "coats",

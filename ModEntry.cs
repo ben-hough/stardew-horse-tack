@@ -186,12 +186,6 @@ namespace MrGlim.HorseTack
             if (Game1.activeClickableMenu != null)
                 return;
 
-            if (this.Registry.TotalCount == 0)
-            {
-                Game1.showRedMessage(I18n.Get("message.no-art"));
-                return;
-            }
-
             Farmer me = Game1.player;
             List<Horse> horses = HorseUtil.GetAllHorses()
                 .Where(h => HorseUtil.CanEdit(me, h, this.Config.AnyoneCanEdit))

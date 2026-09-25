@@ -11,16 +11,16 @@ refs/
 *.pdb
 *.xnb
 
-# Elle's Cuter Horses art and anything derived from it (install Elle's mod separately)
+# third-party art and previews derived from it - never commit
 poc/
 previews/
 elle/
 **/Elle*/
-assets/coats/*.png
-assets/saddles/*.png
-assets/pads/*.png
-assets/bridles/*.png
-assets/styles/*.png
+# bundled drop folder: never commit art (keep the folder READMEs/.gitkeep)
+assets/**/*.png
+assets/**/*.PNG
+**/assets/**/*.png
+!docs/icon.png
 tests/**/data/
 
 # secrets

@@ -75,7 +75,7 @@ namespace MrGlim.HorseTack.Menus
             this.Service = service;
             this.Horses = horses;
             this.CurrentHorse = initialHorse;
-            this.Selection = TackSelection.FromModData(initialHorse).Clone();
+            this.Selection = this.Registry.Canonicalize(TackSelection.FromModData(initialHorse).Clone());
 
             this.Layout();
             this.RebuildSteps(keep: null);
@@ -291,6 +291,16 @@ namespace MrGlim.HorseTack.Menus
             if (this.DownArrow.visible)
                 this.DownArrow.draw(b);
 
+            // no art for this layer: explain where to add it
+            if (LayerFor(this.CurrentStep) is TackLayer emptyLayer && this.Registry.Get(emptyLayer).Count == 0)
+            {
+                int lastRow = Math.Min(this.Choices.Count, this.Rows.Count) - 1;
+                int noteY = (lastRow >= 0 ? this.Rows[lastRow].bounds.Bottom : this.ListBox.Y) + 16;
+                string key = this.Registry.TotalCount == 0 ? "wizard.no-art" : "wizard.empty-layer";
+                string note = Game1.parseText(I18n.Get(key, new { folder = TackLayers.FolderName(emptyLayer) }), Game1.smallFont, this.ListBox.Width - 24);
+                Utility.drawTextWithShadow(b, note, Game1.smallFont, new Vector2(this.ListBox.X + 12, noteY), Game1.textColor * 0.8f);
+            }
+
             // position indicator
             string pos = $"{this.SelectedIndex + 1}/{this.Choices.Count}";
             Vector2 posSize = Game1.smallFont.MeasureString(pos);
@@ -354,21 +364,18 @@ namespace MrGlim.HorseTack.Menus
             _ => null
         };
 
-        /// <summary>Recompute which steps apply (the pad step only appears when a saddle is chosen; empty categories are skipped).</summary>
+        /// <summary>Recompute which steps apply (the pad step only appears when a saddle is chosen). Layers with no art still get a step offering None.</summary>
         private void RebuildSteps(Step? keep)
         {
             var steps = new List<Step>();
             if (this.Horses.Count > 1)
                 steps.Add(Step.Horse);
             steps.Add(Step.Coat);
-            if (this.Registry.Get(TackLayer.Saddle).Count > 0)
-                steps.Add(Step.Saddle);
-            if (this.Selection.Saddle != "" && this.Registry.Get(TackLayer.Pad).Count > 0)
+            steps.Add(Step.Saddle);
+            if (this.Selection.Saddle != "")
                 steps.Add(Step.Pad);
-            if (this.Registry.Get(TackLayer.Bridle).Count > 0)
-                steps.Add(Step.Bridle);
-            if (this.Registry.Get(TackLayer.Style).Count > 0)
-                steps.Add(Step.Style);
+            steps.Add(Step.Bridle);
+            steps.Add(Step.Style);
             steps.Add(Step.Confirm);
             this.Steps = steps;
 
@@ -436,7 +443,7 @@ namespace MrGlim.HorseTack.Menus
                 if (!ReferenceEquals(horse, this.CurrentHorse))
                 {
                     this.CurrentHorse = horse;
-                    this.Selection = TackSelection.FromModData(horse).Clone();
+                    this.Selection = this.Registry.Canonicalize(TackSelection.FromModData(horse).Clone());
                 }
             }
             else if (LayerFor(step) is TackLayer layer)

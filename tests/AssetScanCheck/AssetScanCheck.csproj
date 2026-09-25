@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Unit check for Framework/AssetRegistry.cs: scans a temporary Mods/HorseTack/assets folder (mixed-case folders, prefixes, duplicates, bad sizes). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <PlatformTarget>x64</PlatformTarget>
+    <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley</GamePath>
+    <SmapiInternal Condition="Exists('$(GamePath)\smapi-internal\SMAPI.Toolkit.CoreInterfaces.dll')">$(GamePath)\smapi-internal</SmapiInternal>
+    <SmapiInternal Condition="'$(SmapiInternal)' == ''">$(GamePath)</SmapiInternal>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Framework\AssetRegistry.cs" Link="AssetRegistry.cs" />
+    <Compile Include="..\..\Framework\TackOption.cs" Link="TackOption.cs" />
+    <Compile Include="..\..\Framework\TackLayer.cs" Link="TackLayer.cs" />
+    <Compile Include="..\..\Framework\TackSelection.cs" Link="TackSelection.cs" />
+    <Compile Include="..\..\Framework\Log.cs" Link="Log.cs" />
+    <Compile Include="..\..\I18n.cs" Link="I18n.cs" />
+    <Reference Include="MonoGame.Framework"><HintPath>$(GamePath)\MonoGame.Framework.dll</HintPath></Reference>
+    <Reference Include="StardewModdingAPI"><HintPath>$(GamePath)\StardewModdingAPI.dll</HintPath></Reference>
+    <Reference Include="Stardew Valley"><HintPath>$(GamePath)\Stardew Valley.dll</HintPath></Reference>
+    <Reference Include="SMAPI.Toolkit.CoreInterfaces"><HintPath>$(SmapiInternal)\SMAPI.Toolkit.CoreInterfaces.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

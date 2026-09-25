@@ -1,6 +1,6 @@
 # HorseTack option 2 – layered horse + saddle + pad + bridle, synced in multiplayer
 
-> Historical pre-build research notes. The shipped mod differs: UniqueID `MrGlim.HorseTack`, modData keys `MrGlim.HorseTack/coat|saddle|pad|bridle|style`, a standalone compositor (no dependency on or code from Multiplayer Horse Reskin), and a stable-wizard UI. See README.md.
+> Historical pre-build research notes. Since 1.1.0 the mod is self-contained: it reads PNGs only from its own `assets` folder and never reads Elle's Cuter Horses or any other mod's files. Other differences from these notes: UniqueID `MrGlim.HorseTack`, modData keys `MrGlim.HorseTack/coat|saddle|pad|bridle|style`, a standalone compositor (no dependency on or code from Multiplayer Horse Reskin), and a stable-wizard UI. See README.md.
 
 ## Parent mod facts (Multiplayer Horse Reskin, Nexus 7681, DelphinWave/"DellyBelly")
 - Source: https://github.com/DelphinWave/MultiplayerHorseReskin (MIT, (c) 2024 DelphinWave).

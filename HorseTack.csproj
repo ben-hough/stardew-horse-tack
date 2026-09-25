@@ -3,7 +3,7 @@
   <PropertyGroup>
     <AssemblyName>HorseTack</AssemblyName>
     <RootNamespace>MrGlim.HorseTack</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <TargetFramework>net6.0</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
@@ -31,12 +31,13 @@
 
   <ItemGroup>
     <Compile Remove="bin\**;obj\**;tests\**;tools\**;poc\**;previews\**" />
-    <None Remove="tests\**;tools\**;poc\**;previews\**;docs\**;README.md" />
+    <None Remove="assets\**\*.png;tests\**;tools\**;poc\**;previews\**;docs\**;README.md" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="manifest.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="i18n\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="assets\README.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
