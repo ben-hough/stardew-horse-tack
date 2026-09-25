@@ -11,5 +11,5 @@
     { "UniqueID": "spacechase0.GenericModConfigMenu", "IsRequired": false },
     { "UniqueID": "Elle.CuterHorses", "IsRequired": false }
   ],
-  "UpdateKeys": []
+  "UpdateKeys": [ "Nexus:52917" ]
 }
