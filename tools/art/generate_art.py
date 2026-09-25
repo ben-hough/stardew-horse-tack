@@ -13,6 +13,7 @@ flat Stardew-style shading).
 """
 import argparse
 import hashlib
+import math
 import os
 
 import numpy as np
@@ -784,6 +785,511 @@ def coat_copy_extras(out, vanilla):
 
 
 # ---------------------------------------------------------------------------------------------
+# Breed coats (1.3.0): real-world colourings painted region by region on the saddle-less vanilla
+# sheet (body / legs / head / mane+tail), with markings placed in reference-frame coordinates.
+# Colours are chosen from general knowledge of horse colours; no other mod's art is used.
+# ---------------------------------------------------------------------------------------------
+SHADES = 'hlmsd'
+
+
+def shade_set(*hexes):
+    """Five shades, light to dark: h, l, m, s, d."""
+    return dict(zip(SHADES, (hexc(h) for h in hexes)))
+
+
+def mix(a, b, t):
+    return tuple(int(round(a[i] * (1 - t) + b[i] * t)) for i in range(3)) + (255,)
+
+
+def rainbow_at(k, lighten=0.0, darken=0.0):
+    c = RAINBOW[k % len(RAINBOW)]
+    if lighten:
+        c = mix(c, (255, 255, 255, 255), lighten)
+    if darken:
+        c = mix(c, (0, 0, 0, 255), darken)
+    return c
+
+
+HEAD_BOX = {'side': (19, 6, 31, 20), 'down': (12, 13, 21, 29), 'up': (11, 2, 22, 10)}
+
+
+def in_head(view, hx, hy):
+    x0, y0, x1, y1 = HEAD_BOX[view]
+    if not (x0 <= hx < x1 and y0 <= hy < y1):
+        return False
+    if view == 'side':
+        return (hx >= 20 and hy <= 13) or hx >= 25
+    return True
+
+
+def classify(anchors, f, x, y):
+    """Return (view, part, rx, ry, head) for a pixel in frame f. part: head, leg, lowleg or body;
+    rx/ry: body reference coords; head: (view, hx, hy) head reference coords or None."""
+    heads = anchors.head.get(f, [])
+    for hv, hdx, hdy in heads:
+        hx, hy = x - hdx, y - hdy
+        if in_head(hv, hx, hy):
+            if f in ICON_FRAMES or f not in anchors.body:
+                return hv, 'head', hx, hy, (hv, hx, hy)
+            view, dx, dy = anchors.body[f]
+            if view != 'up':
+                return view, 'head', x - dx, y - dy, (hv, hx, hy)
+    if f not in anchors.body:
+        return None, 'head', x, y, None
+    view, dx, dy = anchors.body[f]
+    rx, ry = x - dx, y - dy
+    if view == 'up' and ry <= 9:
+        return view, 'head', rx, ry, ('up', rx, ry)
+    leg = {'side': ry >= 22, 'down': ry >= 22 and (rx <= 12 or rx >= 20), 'up': ry >= 19 and (rx <= 14 or rx >= 18)}[view]
+    low = {'side': ry >= 25, 'down': ry >= 26, 'up': ry >= 26}[view]
+    return view, ('lowleg' if (leg and low) else 'leg' if leg else 'body'), rx, ry, None
+
+
+def face_front(sym, f):
+    """Per frame and row, the front-most face pixel of side-view heads (facing right)."""
+    fx, fy = origin(f)
+    out = {}
+    for y in range(32):
+        xs = [x for x in range(32) if sym[fy + y, fx + x] in tuple(SHADES)]
+        if xs:
+            out[y] = max(xs)
+    return out
+
+
+BREED_COATS = {
+    # name: dict(outline, body, legs, lowlegs, head, mane(N, n), marks...)
+    'Breeds_SilverBay': dict(
+        outline='3a1a0c', body=shade_set('d99a64', 'c27a44', 'a55f30', '8a4a22', '6b3818'),
+        legs=shade_set('8a6a58', '6e5244', '5a4034', '4a342a', '3a2820'),
+        mane=('c9c2b4', 'f2eee4'), mane_streak='a8a092'),
+    'Breeds_RedDun': dict(
+        outline='4a2410', body=shade_set('f4d2a6', 'e8b882', 'd9a06a', 'c48652', 'a86c3e'),
+        legs=shade_set('d49a6a', 'c07e50', 'a86a40', '905634', '744428'),
+        mane=('8a3a1c', 'b0582e'), dorsal='6e2a12', bars='8a3e1c'),
+    'Breeds_Grulla': dict(
+        outline='1e1a18', body=shade_set('b8ada0', 'a09486', '8a7e72', '74685e', '5e544c'),
+        legs=shade_set('4a4440', '3a3532', '2e2a28', '26221f', '1e1b19'),
+        head=shade_set('7a7068', '665c55', '554c46', '463f3a', '3a3430'),
+        mane=('1c1a18', '3a3634'), dorsal='2a2624', bars='2e2a28'),
+    'Breeds_DappleGrey': dict(
+        outline='2a2c30', body=shade_set('e6e8ea', 'cfd3d6', 'a9aeb3', '8e949a', '71777e'),
+        legs=shade_set('7a8086', '646a70', '52575c', '43474c', '36393d'),
+        head=shade_set('eef0f1', 'dadddf', 'c2c6c9', 'a8adb1', '8e9398'),
+        mane=('9aa0a6', 'e4e6e8'), dapple=True),
+    'Breeds_Brindle': dict(
+        outline='2a1a10', body=shade_set('d8b07a', 'c89a60', 'b0824a', '94693a', '78542c'),
+        legs=shade_set('6a4a30', '5a3e28', '4a3220', '3c281a', '301f14'),
+        mane=('2a1a10', '4a3020'), brindle='5a3a1e'),
+    'Breeds_Sabino': dict(
+        outline='4a1e0c', body=shade_set('e89a5c', 'd67e40', 'bf6a30', 'a45626', '86441c'),
+        legs=shade_set('ffffff', 'f6f3ee', 'e8e2da', 'd8d0c6', 'c4bab0'),
+        mane=('7a2e12', 'a8481e'), blaze='fbf8f2', belly='fbf8f2', white_legs=True),
+    'Breeds_GoldChampagne': dict(
+        outline='5a3a16', body=shade_set('fff0c0', 'f6dc98', 'e8c474', 'd4a85a', 'b88c44'),
+        legs=shade_set('e8c474', 'd4a85a', 'c09450', 'a87e42', '8e6834'),
+        mane=('c8923e', 'f2d08a'), muzzle='d8a090', sheen=True),
+    'Prismatic_Night': dict(
+        outline='0a0a12', body=shade_set('3a3a52', '2a2a3e', '1e1e2e', '171724', '10101a'),
+        legs=shade_set('2a2a3e', '1e1e2e', '171724', '12121c', '0c0c14'),
+        mane='aurora', shimmer=0.0),
+    'Prismatic_Pearl': dict(
+        outline='6a6480', body=shade_set('ffffff', 'fbf9ff', 'eeeaf6', 'dcd6ea', 'c6bedc'),
+        legs=shade_set('fbf9ff', 'eeeaf6', 'dcd6ea', 'c6bedc', 'b0a8c8'),
+        mane='opal', shimmer=0.45),
+}
+
+
+def make_breed_coat(sym, anchors, spec, key):
+    out = np.zeros((H, W, 4), dtype=np.uint8)
+    outline = hexc(spec['outline'])
+    body = spec['body']
+    legs = spec.get('legs', body)
+    lowlegs = spec.get('lowlegs', legs)
+    head = spec.get('head', body)
+    fronts = {f: face_front(sym, f) for f in range(28)}
+    for f in range(28):
+        fx, fy = origin(f)
+        for y in range(32):
+            for x in range(32):
+                c = sym[fy + y, fx + x]
+                if c in ('.', ',', '?', ''):
+                    continue
+                gx, gy = fx + x, fy + y
+                if c == '#':
+                    out[gy, gx] = outline
+                    continue
+                view, part, rx, ry, hd = classify(anchors, f, x, y)
+                if c in ('G', 'g'):
+                    out[gy, gx] = legs['d']
+                    continue
+                if c in ('N', 'n'):
+                    out[gy, gx] = mane_colour(spec, c, gx, gy, key)
+                    continue
+                pal_ = {'head': head, 'leg': legs, 'lowleg': lowlegs}.get(part, body)
+                col = pal_[c]
+                col = breed_marks(spec, key, col, c, f, x, y, view, part, rx, ry, hd, fronts[f], sym, fx, fy) or col
+                out[gy, gx] = col
+    return out
+
+
+def mane_colour(spec, c, gx, gy, key):
+    m = spec['mane']
+    if m == 'aurora':
+        # night: one smooth teal -> violet -> magenta gradient down the mane and tail, with star glints
+        t = min(1.0, max(0.0, ((gy % 32) - 4) / 22.0))
+        stops = [hexc('1f8a8a'), hexc('4a3aa8'), hexc('a0408c')]
+        col = mix(stops[0], stops[1], t * 2) if t < 0.5 else mix(stops[1], stops[2], (t - 0.5) * 2)
+        if c == 'n':
+            col = mix(col, (255, 255, 255, 255), 0.25)
+        if rnd(key, 'star', gx, gy) < 0.07:
+            col = hexc('e8ecff')
+        return col
+    if m == 'opal':
+        # pearl: silver-white mane with soft mother-of-pearl flecks (aqua, lilac, blush)
+        col = hexc('d6d2e6') if c == 'N' else hexc('f4f2fa')
+        r = rnd(key, 'opal', gx, gy)
+        if r < 0.4:
+            col = mix(col, hexc(('8fd8d4', 'b8a0ec', 'eca8c8')[int(r * 10) % 3]), 0.7)
+        return col
+    col = hexc(m[0] if c == 'N' else m[1])
+    if spec.get('mane_streak') and rnd(key, 'streak', gx, gy) < spec.get('streak_rate', 0.22):
+        col = hexc(spec['mane_streak'])
+    return col
+
+
+def breed_marks(spec, key, col, c, f, x, y, view, part, rx, ry, hd, front, sym, fx, fy):
+    r = rnd(key, f, x, y)
+    # dorsal stripe (duns)
+    if spec.get('dorsal') and part == 'body':
+        if view == 'side' and 8 <= rx <= 21 and sym[fy + y - 1, fx + x] == '#' and ry <= 16:
+            return hexc(spec['dorsal'])
+        if view == 'up' and rx == 16 and 11 <= ry <= 17:
+            return hexc(spec['dorsal'])
+    # primitive leg bars (duns)
+    if spec.get('bars') and part in ('leg', 'lowleg') and ry in (23, 25):
+        return mix(col, hexc(spec['bars']), 0.7)
+    # dapples: soft light rings on the barrel and hindquarters
+    if spec.get('dapple') and part == 'body' and c in 'msd':
+        cx, cy = (rx + (ry // 3) % 2 * 2) % 4, ry % 3
+        if (cx, cy) in ((1, 1), (2, 1)):
+            return spec['body']['l'] if c != 'd' else spec['body']['m']
+        if (cx, cy) in ((1, 0), (2, 2)) and r < 0.5:
+            return spec['body']['h'] if c == 'm' else None
+    # brindle: fine wavy vertical stripes on the body
+    if spec.get('brindle') and part == 'body' and c in 'mlsd':
+        wave = int(round(1.2 * math.sin(ry / 1.7)))
+        if (rx + wave) % 3 == 0 and r < 0.85:
+            return mix(col, hexc(spec['brindle']), 0.75)
+    # sabino: white stockings, blaze, belly roaning, chin
+    if spec.get('white_legs') and part == 'leg' and r < 0.35:
+        return spec['legs'][c]
+    if spec.get('white_legs') and part == 'leg':
+        return mix(spec['body'][c], spec['legs'][c], 0.45)
+    if spec.get('belly') and part == 'body' and view == 'side' and ry >= 19 and r < 0.55:
+        return hexc(spec['belly'])
+    if spec.get('blaze') and hd:
+        hv, hx, hy = hd
+        if hv == 'side' and 10 <= hy <= 18 and front.get(y) == x:
+            return hexc(spec['blaze'])
+        if hv == 'down' and ((hx == 16 and 17 <= hy <= 26) or (hx in (15, 17) and 21 <= hy <= 25)):
+            return hexc(spec['blaze'])
+    # champagne: pinkish mottled skin around the muzzle, metallic sheen
+    if spec.get('muzzle') and hd:
+        hv, hx, hy = hd
+        if hv == 'side' and 15 <= hy <= 18 and front.get(y, -9) - x <= 1 and r < 0.8:
+            return hexc(spec['muzzle'])
+        if hv == 'down' and 25 <= hy <= 27 and 14 <= hx <= 18 and r < 0.7:
+            return hexc(spec['muzzle'])
+    if spec.get('sheen') and c in 'ml' and part != 'head' and (rx - ry) % 6 == 0:
+        return spec['body']['h']
+    # prismatic shimmer on highlights
+    if 'shimmer' in spec and c in 'hl':
+        k = (x + y + f) // 2
+        if spec['shimmer'] == 0.0:
+            # night: a cool violet sheen, with prismatic glints only on the brightest highlights
+            if c == 'h' and part != 'head' and r < 0.6:
+                return rainbow_at(k, lighten=0.2)
+            return hexc('4a4a7e') if c == 'h' else hexc('38385e')
+        return rainbow_at(k, lighten=1 - spec['shimmer'] * 0.6) if (c == 'h' or r < 0.6) else None
+    return None
+
+
+# ---------------------------------------------------------------------------------------------
+# Ranch / winter tack (1.3.0)
+# ---------------------------------------------------------------------------------------------
+PALS.update({
+    'Ranch_Sage': pal(O='27301c', D='4a5a36', M='6b7d4f', L='8fa06c', H='d6b04a', A='c9a13b', B='efe0b0', S='c9a13b'),
+    'Winter_Frostglass': pal(O='2a4a6e', D='5d8fc0', M='8ec5ec', L='d4efff', H='ffffff', A='ffffff', B='b8e4ff', S='dfe9f2'),
+    'Winter_FrostglassPad': pal(O='2d4f73', D='9cc9ea', M='c8e6fa', L='f2fbff', A='ffffff', B='a8d8f5', C='7fb6e0'),
+    'Ranch_SageBridle': pal(O='27301c', D='4a5a36', M='6b7d4f', A='d6b04a', B='efe0b0', C='8fa06c', R='4a5a36'),
+})
+
+
+def sage_stitch(f, x, y, ch, i, j):
+    if ch == 'M' and (i + j) % 2 == 0 and j in (3, 4) and VIEW_OF.get(f) == 'side':
+        return 'B' if i % 4 == 1 else ch
+    if ch == 'M' and rnd('sage', f // 7, i, j) > 0.95:
+        return 'A'
+    return ch
+
+
+def frost_glass(f, x, y, ch, i, j):
+    if ch in 'M' and (i - j) % 4 == 0:
+        return 'L'
+    if ch == 'M' and rnd('frost', i, j) > 0.9:
+        return 'A'
+    return ch
+
+
+def frost_fern(f, x, y, ch, i, j):
+    if ch == 'M' and (i + j) % 4 == 0:
+        return 'L'
+    if ch == 'M' and (i + 2 * j) % 7 == 0:
+        return 'A'
+    return ch
+
+
+def sage_buckles(L, f, view, hx, hy, icon):
+    p = PALS['Ranch_SageBridle']
+    if view == 'side':
+        L.put(f, 25 + hx, 12 + hy, p['A'])
+        L.put(f, 25 + hx, 9 + hy, p['A'])
+
+
+# ---------------------------------------------------------------------------------------------
+# Witchy collection (1.3.0): deep purples, moss green, mushroom red, aged brass, moon silver.
+# Original designs; style inspiration only (a witchy farm), nothing copied from any mod.
+# ---------------------------------------------------------------------------------------------
+PALS.update({
+    'Witchy_Broomstick': pal(O='2a1a0e', D='4a2e16', M='6b4423', L='8a5a30', H='d0aa55', A='d0aa55', B='5b2e8a', S='a8843a',
+                             Y='f0d27a', y='c9a24a', T='8a6a2a', b='5b2e8a'),
+    'Witchy_Grimoire': pal(O='1e1030', D='3a1f5c', M='5b2e8a', L='efe4c8', H='d0aa55', A='d0aa55', B='c8322a', S='a8843a'),
+    'Witchy_MossMushroom': pal(O='2a3a14', D='4f6b2a', M='6f8f3a', L='93b45a', A='d8362c', B='f4ecd8', C='465f22'),
+    'Witchy_StarryHex': pal(O='140a24', D='2a1646', M='3f2266', L='b8bfd0', A='f4f6fb', B='d6dbe6', C='8a58c4'),
+    'Witchy_PotionVials': pal(O='1e1208', M='3a2418', A='d0aa55', R='3a2418', G='6fe05a', P='f06ac0', U='5ac0f0', K='8a5a30', W='ffffff'),
+    'Witchy_CrescentCharm': pal(O='140a24', M='4a2a78', A='c9cfdc', R='4a2a78', S='f4f6fb'),
+    'Witchy_Hat': pal(O='160c26', M='3f2266', L='6a3fa0', A='5f7f32', B='d8b25a'),
+    'Witchy_Familiar': pal(K='1a1420', V='7a58b0', Y='f2d23c'),
+})
+
+BRISTLES = {
+    'side': ((5, 11), tpl("""
+        .T...b
+        TyY.Tb
+        yYyYyb
+        TyYyYb
+        .yTyTb
+        ..T...
+    """)),
+    'up': ((13, 17), tpl("""
+        bbbbbbb
+        yYyYyYy
+        TyYyYyT
+        .TyTyT.
+        ..T.T..
+    """)),
+    'down': ((13, 9), tpl("""
+        .T.T.T.
+        TyTyTyT
+    """)),
+}
+
+
+def wood_grain(f, x, y, ch, i, j):
+    if ch == 'M' and (i + (j // 2)) % 3 == 0:
+        return 'D'
+    if ch == 'L' and i % 4 == 2:
+        return 'H'
+    return ch
+
+
+def draw_broomstick(anchors):
+    p = PALS['Witchy_Broomstick']
+    L = draw_saddle(anchors, p, wood_grain)
+    for f, view, dx, dy in body_views(anchors):
+        (ox, oy), rows = BRISTLES[view]
+        stamp(L, f, rows, ox + dx, oy + dy, p)
+    return L
+
+
+def grimoire(f, x, y, ch, i, j):
+    v = VIEW_OF.get(f)
+    clasp = {'side': {(5, 4): 'A', (6, 4): 'A', (5, 5): 'A'}, 'up': {(6, 3): 'A', (6, 4): 'A'}, 'down': {(7, 2): 'A'}}
+    ribbon = {'side': {(8, 5): 'B', (8, 6): 'B'}, 'up': {(9, 4): 'B', (9, 5): 'B'}, 'down': {(4, 2): 'B'}}
+    if (i, j) in clasp.get(v, {}):
+        return clasp[v][(i, j)]
+    if (i, j) in ribbon.get(v, {}):
+        return ribbon[v][(i, j)]
+    if ch == 'M' and v == 'side' and (i, j) in ((3, 3), (8, 3), (3, 5), (7, 5)):
+        return 'A'  # brass corners
+    return ch
+
+
+MUSHROOMS = {
+    'side': {(2, 6): 'A', (3, 6): 'A', (2, 7): 'B', (10, 5): 'A', (11, 5): 'A', (11, 6): 'B', (6, 7): 'A', (6, 8): 'B'},
+    'down': {(2, 5): 'A', (2, 6): 'B', (12, 8): 'A', (12, 9): 'B', (1, 9): 'A', (13, 4): 'A'},
+    'up': {(3, 2): 'A', (4, 2): 'A', (4, 3): 'B', (9, 4): 'A', (10, 4): 'A', (9, 5): 'B', (6, 6): 'A'},
+}
+
+
+def moss_mushroom(f, x, y, ch, i, j):
+    v = VIEW_OF.get(f)
+    if (i, j) in MUSHROOMS.get(v, {}) and ch in 'MLD':
+        return MUSHROOMS[v][(i, j)]
+    if ch == 'M':
+        r = rnd('moss', f // 7, i, j)
+        if r < 0.22:
+            return 'C'
+        if r < 0.36:
+            return 'L'
+    return ch
+
+
+def starry_hex(f, x, y, ch, i, j):
+    v = VIEW_OF.get(f)
+    moon = {'side': {(4, 5): 'B', (5, 6): 'B', (4, 7): 'B'}, 'up': {(3, 3): 'B', (4, 4): 'B', (3, 5): 'B'}, 'down': {(2, 6): 'B', (2, 7): 'B'}}
+    if (i, j) in moon.get(v, {}) and ch in 'MLD':
+        return moon[v][(i, j)]
+    if ch == 'M':
+        r = rnd('hex', f // 7, i, j)
+        if r < 0.08:
+            return 'A'
+        if (i * 2 + j * 3) % 9 == 0:
+            return 'C'
+    return ch
+
+
+def potion_vials(L, f, view, hx, hy, icon):
+    p = PALS['Witchy_PotionVials']
+    if view == 'side':
+        for (x, y, c) in ((24, 13, 'K'), (24, 14, 'G'), (24, 15, 'G'), (22, 14, 'K'), (22, 15, 'P'), (22, 16, 'P'),
+                          (26, 17, 'K'), (26, 18, 'U')):
+            L.put(f, x + hx, y + hy, p[c])
+    elif view == 'down':
+        for (x, y, c) in ((13, 25, 'K'), (13, 26, 'G'), (13, 27, 'G'), (19, 25, 'K'), (19, 26, 'P'), (19, 27, 'P')):
+            L.put(f, x + hx, y + hy, p[c])
+
+
+CRESCENT = {
+    'side': ((21, 15), tpl("""
+        .O.
+        .O.
+        OSO
+        OSAO
+        OSO.
+        .OO.
+    """)),
+    'down': ((14, 20), tpl("""
+        S...S
+        OSASO
+        .OOO.
+    """)),
+}
+
+
+def crescent_charm(L, f, view, hx, hy, icon):
+    p = PALS['Witchy_CrescentCharm']
+    if view not in CRESCENT or (icon and view == 'side'):
+        return  # the throat pendant would float off the small head icons
+    (ox, oy), rows = CRESCENT[view]
+    for j, row in enumerate(rows):
+        for i, c in enumerate(row):
+            if c != '.':
+                L.put(f, ox + i + hx, oy + j + hy, p[c])
+
+
+HAT = {
+    'side': ((21, -1), tpl("""
+        ..OO.......
+        .OLMO......
+        ..OLMO.....
+        ...OLMO....
+        ...OLMMO...
+        ..OLMMMMO..
+        ..OAABAAO..
+        OOMMMMMMMOO
+        .OOOOOOOOO.
+    """)),
+    'down': ((11, 6), tpl("""
+        .....OO....
+        .....OMO...
+        ....OLMO...
+        ...OLMMO...
+        ...OLMMMO..
+        ..OLMMMMO..
+        ..OAABAAO..
+        OOMMMMMMMOO
+        .OOOOOOOOO.
+    """)),
+    'up': ((11, 1), tpl("""
+        ....OMO....
+        ...OLMMO...
+        ..OAAAAAO..
+        OOMMMMMMMOO
+        .OOOOOOOOO.
+    """)),
+}
+
+
+def draw_witch_hat(anchors):
+    p = PALS['Witchy_Hat']
+    L = Layer()
+    for f in range(28):
+        if f in ICON_FRAMES:
+            continue
+        for view, hx, hy in head_items(anchors, f):
+            if view in ('side', 'down'):
+                (ox, oy), rows = HAT[view]
+                stamp(L, f, rows, ox + hx, oy + hy, p)
+        if VIEW_OF.get(f) == 'up':
+            hx, hy = up_head_anchor(anchors, f)
+            (ox, oy), rows = HAT['up']
+            stamp(L, f, rows, ox + hx, oy + hy, p)
+    return L
+
+
+FAMILIAR = {
+    'side': ((5, 7), tpl("""
+        ...K.K
+        ...KKK
+        ...VKY
+        .KVKKK
+        KVKKKK
+        K.KKKK
+        KK.KK.
+    """)),
+    'up': ((14, 18), tpl("""
+        K...K
+        KKKKK
+        VKKKV
+        .KKK.
+        KKKKK
+        .KKKKK
+    """)),
+    'down': ((15, 8), tpl("""
+        K.K
+        KKK
+        YKY
+    """)),
+}
+
+
+def draw_familiar(anchors):
+    p = PALS['Witchy_Familiar']
+    L = Layer()
+    for f, view, dx, dy in body_views(anchors):
+        (ox, oy), rows = FAMILIAR[view]
+        stamp(L, f, rows, ox + dx, oy + dy, p)
+    return L
+
+
+BREED_COATS['Witchy_MidnightFamiliar'] = dict(
+    outline='0c0814', body=shade_set('56407e', '3e2c5e', '2c2040', '231a34', '1a1328'),
+    legs=shade_set('4a3470', '2c2040', '231a34', '1c1529', '15101f'),
+    mane=('1a1226', '4a2e78'), mane_streak='7a4ab8', streak_rate=0.12, sheen=True)
+
+
+# ---------------------------------------------------------------------------------------------
 def resolve(p):
     """Turn prismatic tuples into colours after drawing."""
     return p
@@ -834,6 +1340,20 @@ def build_all(anchors, include_coats, vanilla):
     out['bridles/WinterStar_JingleBells'] = draw_bridle(anchors, P['WinterStar_JingleBells'], bells)
     out['bridles/NightMarket_Pearl'] = draw_bridle(anchors, P['NightMarket_Pearl'], pearls)
 
+    out['saddles/Ranch_Sage'] = draw_saddle(anchors, P['Ranch_Sage'], sage_stitch)
+    out['saddles/Winter_Frostglass'] = draw_saddle(anchors, P['Winter_Frostglass'], frost_glass)
+    out['pads/Winter_Frostglass'] = draw_pad(anchors, P['Winter_FrostglassPad'], frost_fern)
+    out['bridles/Ranch_Sage'] = draw_bridle(anchors, P['Ranch_SageBridle'], sage_buckles)
+
+    out['saddles/Witchy_Broomstick'] = draw_broomstick(anchors)
+    out['saddles/Witchy_Grimoire'] = draw_saddle(anchors, P['Witchy_Grimoire'], grimoire)
+    out['pads/Witchy_MossMushroom'] = draw_pad(anchors, P['Witchy_MossMushroom'], moss_mushroom)
+    out['pads/Witchy_StarryHex'] = draw_pad(anchors, P['Witchy_StarryHex'], starry_hex)
+    out['bridles/Witchy_PotionVials'] = draw_bridle(anchors, P['Witchy_PotionVials'], potion_vials)
+    out['bridles/Witchy_CrescentCharm'] = draw_bridle(anchors, P['Witchy_CrescentCharm'], crescent_charm)
+    out['styles/Witchy_Hat'] = draw_witch_hat(anchors)
+    out['styles/Witchy_Familiar'] = draw_familiar(anchors)
+
     out['styles/FlowerDance_Crown'] = draw_crown(anchors, P['FlowerDance_Crown'])
     out['styles/Luau_Lei'] = draw_lei(anchors, P['Luau_Lei'])
     out['styles/Junimo_Buddy'] = draw_junimo(anchors, P['Junimo_Buddy'])
@@ -844,6 +1364,12 @@ def build_all(anchors, include_coats, vanilla):
         sym = saddleless_vanilla(vanilla, anchors)
         for name, spec in COATS.items():
             a = make_coat(sym, spec)
+            coat_copy_extras(a, vanilla)
+            L = Layer()
+            L.a = a
+            out['coats/' + name] = L
+        for name, spec in BREED_COATS.items():
+            a = make_breed_coat(sym, anchors, spec, name)
             coat_copy_extras(a, vanilla)
             L = Layer()
             L.a = a

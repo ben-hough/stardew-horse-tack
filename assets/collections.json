@@ -19,7 +19,11 @@
     "Stardrop": "Stardrop",
     "MrQi": "Mr. Qi",
     "Joja": "Joja",
-    "Lewis": "Lewis"
+    "Lewis": "Lewis",
+    "Breeds": "Breeds",
+    "Ranch": "Ranch",
+    "Winter": "Winter",
+    "Witchy": "Witchy"
   },
   // Optional display-name overrides, keyed by the file name without the Saddle_/Pad_/Bridle_ prefix or .png.
   "Names": {
@@ -31,6 +35,8 @@
     "FestivalOfIce_Frost": "Frost",
     "GoldenWalnut_Gilded": "Gilded",
     "Galaxy_Stardust": "Stardust",
-    "MrQi_Casino": "Casino"
+    "MrQi_Casino": "Casino",
+    "Witchy_MossMushroom": "Moss & Mushroom",
+    "Witchy_Hat": "Witch Hat"
   }
 }
