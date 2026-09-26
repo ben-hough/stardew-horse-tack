@@ -1,3 +1,5 @@
+> This mod has moved to https://github.com/ben-hough/stardew-mods/tree/main/HorseTack. This repo is archived and read-only; full history was preserved there.
+
 <p align="center"><img src="docs/icon.png" width="128" alt="Horse Tack & Styling icon"></p>
 
 # Horse Tack & Styling
